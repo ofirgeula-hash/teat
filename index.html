@@ -8,11 +8,11 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="קניות" />
   <link rel="manifest" href="./manifest.json" />
-  <!-- Apple touch icons (inline SVG-based PNG via canvas would be ideal but we use a data URI) -->
   <link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'%3E%3Crect width='192' height='192' rx='42' fill='%231a1a2e'/%3E%3Ctext x='96' y='130' font-size='100' text-anchor='middle' fill='%236c63ff'%3E🛒%3C/text%3E%3C/svg%3E" />
   <title>רשימת קניות</title>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
   <style>
-    /* ── Reset & base ─────────────────────────────────────── */
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     :root {
@@ -40,7 +40,6 @@
       -webkit-tap-highlight-color: transparent;
     }
 
-    /* ── App shell ────────────────────────────────────────── */
     #app {
       display: flex;
       flex-direction: column;
@@ -51,7 +50,6 @@
       padding-bottom: var(--safe-bot);
     }
 
-    /* ── Header ───────────────────────────────────────────── */
     header {
       padding: 0 20px 16px;
       display: flex;
@@ -59,10 +57,9 @@
       gap: 12px;
     }
 
-    .header-icon {
-      font-size: 28px;
-      line-height: 1;
-    }
+    .header-icon { font-size: 28px; line-height: 1; }
+
+    .header-text { flex: 1; }
 
     .header-text h1 {
       font-size: 22px;
@@ -80,7 +77,58 @@
       margin-top: 2px;
     }
 
-    /* ── Stats bar ────────────────────────────────────────── */
+    /* Sync status */
+    .sync-row {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      margin-top: 2px;
+    }
+
+    .sync-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--muted);
+      flex-shrink: 0;
+    }
+
+    .sync-dot.synced  { background: var(--success); }
+    .sync-dot.syncing { background: #f59e0b; animation: pulse 1s infinite; }
+    .sync-dot.offline { background: var(--danger); }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50%       { opacity: 0.3; }
+    }
+
+    .sync-text {
+      font-size: 11px;
+      color: var(--muted);
+    }
+
+    /* Refresh button */
+    #refresh-btn {
+      background: none;
+      border: 1px solid var(--border);
+      color: var(--muted);
+      font-size: 16px;
+      width: 36px;
+      height: 36px;
+      border-radius: 10px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.15s;
+      flex-shrink: 0;
+    }
+
+    #refresh-btn:active { color: var(--accent2); border-color: var(--accent2); }
+    #refresh-btn.spinning { animation: spin 0.6s linear; }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
     .stats {
       margin: 0 20px 16px;
       background: var(--surface);
@@ -118,10 +166,7 @@
       align-self: stretch;
     }
 
-    /* ── Input area ───────────────────────────────────────── */
-    .input-area {
-      padding: 0 20px 16px;
-    }
+    .input-area { padding: 0 20px 16px; }
 
     .input-row {
       display: flex;
@@ -171,7 +216,6 @@
 
     #add-btn:active { background: var(--accent2); transform: scale(0.93); }
 
-    /* ── Filter tabs ──────────────────────────────────────── */
     .filters {
       padding: 0 20px 12px;
       display: flex;
@@ -199,7 +243,6 @@
       font-weight: 600;
     }
 
-    /* ── List ─────────────────────────────────────────────── */
     #list-container {
       flex: 1;
       overflow-y: auto;
@@ -229,7 +272,6 @@
       gap: 8px;
     }
 
-    /* ── List item ────────────────────────────────────────── */
     li {
       background: var(--surface);
       border: 1px solid var(--border);
@@ -238,7 +280,6 @@
       align-items: center;
       gap: 12px;
       padding: 14px 14px;
-      transition: opacity 0.2s, transform 0.2s;
       animation: slideIn 0.22s ease;
       position: relative;
       overflow: hidden;
@@ -262,15 +303,12 @@
       to   { opacity: 1; transform: translateY(0); }
     }
 
-    li.removing {
-      animation: slideOut 0.2s ease forwards;
-    }
+    li.removing { animation: slideOut 0.2s ease forwards; }
 
     @keyframes slideOut {
       to { opacity: 0; transform: translateX(30px); max-height: 0; padding: 0; margin: 0; }
     }
 
-    /* Checkbox */
     .checkbox {
       appearance: none;
       -webkit-appearance: none;
@@ -285,10 +323,7 @@
       position: relative;
     }
 
-    .checkbox:checked {
-      background: var(--success);
-      border-color: var(--success);
-    }
+    .checkbox:checked { background: var(--success); border-color: var(--success); }
 
     .checkbox:checked::after {
       content: '';
@@ -297,7 +332,6 @@
       background: url("data:image/svg+xml,%3Csvg viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M5 13l4 4L19 7' stroke='white' stroke-width='2.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center/14px no-repeat;
     }
 
-    /* Item text */
     .item-text {
       flex: 1;
       font-size: 16px;
@@ -306,12 +340,8 @@
       transition: all 0.2s;
     }
 
-    li.done .item-text {
-      text-decoration: line-through;
-      color: var(--muted);
-    }
+    li.done .item-text { text-decoration: line-through; color: var(--muted); }
 
-    /* Delete button */
     .delete-btn {
       background: none;
       border: none;
@@ -325,12 +355,8 @@
       line-height: 1;
     }
 
-    .delete-btn:active {
-      color: var(--danger);
-      background: rgba(239, 68, 68, 0.12);
-    }
+    .delete-btn:active { color: var(--danger); background: rgba(239, 68, 68, 0.12); }
 
-    /* ── Clear done button ────────────────────────────────── */
     .actions-bar {
       padding: 0 20px 12px;
       display: flex;
@@ -353,7 +379,6 @@
     #clear-done.visible { display: block; }
     #clear-done:active { color: var(--danger); border-color: var(--danger); }
 
-    /* ── iOS install hint ─────────────────────────────────── */
     #install-hint {
       margin: 0 20px 10px;
       background: var(--surface2);
@@ -387,11 +412,14 @@
     <div class="header-icon">🛒</div>
     <div class="header-text">
       <h1>רשימת קניות</h1>
-      <div class="subtitle" id="subtitle">טוען…</div>
+      <div class="sync-row">
+        <div class="sync-dot" id="sync-dot"></div>
+        <span class="sync-text" id="sync-text">מתחבר…</span>
+      </div>
     </div>
+    <button id="refresh-btn" aria-label="רענן">↻</button>
   </header>
 
-  <!-- Stats -->
   <div class="stats">
     <div class="stat">
       <span class="stat-value" id="stat-total">0</span>
@@ -409,7 +437,6 @@
     </div>
   </div>
 
-  <!-- Input -->
   <div class="input-area">
     <div class="input-row">
       <input id="item-input" type="text" placeholder="הוסף פריט לרשימה…" autocomplete="off" autocorrect="off" />
@@ -417,14 +444,12 @@
     </div>
   </div>
 
-  <!-- Filters -->
   <div class="filters">
     <button class="filter-btn active" data-filter="all">הכל</button>
     <button class="filter-btn" data-filter="active">פעיל</button>
     <button class="filter-btn" data-filter="done">הושלם</button>
   </div>
 
-  <!-- List -->
   <div id="list-container">
     <div class="empty-state" id="empty-state">
       <span class="empty-icon">🛍️</span>
@@ -433,12 +458,10 @@
     <ul id="list"></ul>
   </div>
 
-  <!-- Actions -->
   <div class="actions-bar">
     <button id="clear-done">מחק פריטים שהושלמו</button>
   </div>
 
-  <!-- iOS install hint -->
   <div id="install-hint" role="complementary" style="display:none">
     <span class="hint-icon">📲</span>
     <span>להוספה למסך הבית: לחץ על <strong>שתף</strong> ← <strong>הוסף למסך הבית</strong></span>
@@ -448,31 +471,46 @@
 </main>
 
 <script>
-  /* ── State ─────────────────────────────────────────────── */
-  let items = [];
+  /* ── Firebase ───────────────────────────────────────────── */
+  const firebaseConfig = {
+    apiKey:            "AIzaSyB-sa9xR6DxdYv6DCAUn1Ze1Kzb6TMuxzA",
+    authDomain:        "shopping-list-db6a8.firebaseapp.com",
+    projectId:         "shopping-list-db6a8",
+    storageBucket:     "shopping-list-db6a8.firebasestorage.app",
+    messagingSenderId: "722011046106",
+    appId:             "1:722011046106:web:0734fe777690e1270265e3"
+  };
+
+  firebase.initializeApp(firebaseConfig);
+  const db = firebase.firestore();
+  const col = db.collection('items');
+
+  /* ── State ──────────────────────────────────────────────── */
+  let items  = [];
   let filter = 'all';
+  const CACHE_KEY = 'shopping-list-items';
 
-  const STORAGE_KEY = 'shopping-list-items';
+  /* ── Sync status ────────────────────────────────────────── */
+  const syncDot  = document.getElementById('sync-dot');
+  const syncText = document.getElementById('sync-text');
 
-  function load() {
-    try {
-      items = JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
-    } catch { items = []; }
+  function setSyncStatus(state) {
+    syncDot.className = 'sync-dot ' + state;
+    syncText.textContent =
+      state === 'synced'  ? 'מסונכרן ✓' :
+      state === 'syncing' ? 'מסנכרן…'   :
+                            'לא מחובר — גרסה שמורה';
   }
 
-  function save() {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
-  }
-
-  /* ── Render ─────────────────────────────────────────────── */
+  /* ── DOM refs ───────────────────────────────────────────── */
   const listEl       = document.getElementById('list');
   const emptyEl      = document.getElementById('empty-state');
   const clearDoneBtn = document.getElementById('clear-done');
   const statTotal    = document.getElementById('stat-total');
   const statRemain   = document.getElementById('stat-remaining');
   const statDone     = document.getElementById('stat-done');
-  const subtitle     = document.getElementById('subtitle');
 
+  /* ── Render ─────────────────────────────────────────────── */
   function getFiltered() {
     if (filter === 'active') return items.filter(i => !i.done);
     if (filter === 'done')   return items.filter(i => i.done);
@@ -488,10 +526,7 @@
     statTotal.textContent  = total;
     statRemain.textContent = remain;
     statDone.textContent   = done;
-    subtitle.textContent   = total === 0 ? 'ריק' : `${remain} פריטים נותרו`;
-
     clearDoneBtn.classList.toggle('visible', done > 0);
-
     listEl.innerHTML = '';
 
     if (filtered.length === 0) {
@@ -508,18 +543,14 @@
       if (item.done) li.classList.add('done');
 
       const cb = document.createElement('input');
-      cb.type      = 'checkbox';
-      cb.className = 'checkbox';
-      cb.checked   = item.done;
+      cb.type = 'checkbox'; cb.className = 'checkbox'; cb.checked = item.done;
       cb.addEventListener('change', () => toggle(item.id));
 
       const span = document.createElement('span');
-      span.className   = 'item-text';
-      span.textContent = item.text;
+      span.className = 'item-text'; span.textContent = item.text;
 
       const del = document.createElement('button');
-      del.className = 'delete-btn';
-      del.innerHTML = '🗑';
+      del.className = 'delete-btn'; del.innerHTML = '🗑';
       del.setAttribute('aria-label', 'מחק');
       del.addEventListener('click', () => remove(item.id));
 
@@ -528,101 +559,124 @@
     });
   }
 
-  /* ── Actions ─────────────────────────────────────────────── */
-  function addItem(text) {
-    text = text.trim();
-    if (!text) return;
-    items.unshift({ id: Date.now(), text, done: false });
-    save();
+  function cacheLocally() {
+    localStorage.setItem(CACHE_KEY, JSON.stringify(items));
+  }
+
+  /* ── Load from Firestore ────────────────────────────────── */
+  async function loadFromFirestore() {
+    setSyncStatus('syncing');
+    try {
+      const snap = await col.orderBy('order', 'desc').get();
+      items = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      cacheLocally();
+      setSyncStatus('synced');
+    } catch {
+      try { items = JSON.parse(localStorage.getItem(CACHE_KEY)) || []; } catch { items = []; }
+      setSyncStatus('offline');
+    }
     render();
   }
 
-  function toggle(id) {
+  /* ── Actions ────────────────────────────────────────────── */
+  async function addItem(text) {
+    text = text.trim();
+    if (!text) return;
+    const order = Date.now();
+    const tempId = 'tmp_' + order;
+    items.unshift({ id: tempId, text, done: false, order });
+    render();
+    try {
+      const ref = await col.add({ text, done: false, order });
+      const idx = items.findIndex(i => i.id === tempId);
+      if (idx !== -1) items[idx].id = ref.id;
+      cacheLocally();
+    } catch { /* stays in local state */ }
+  }
+
+  async function toggle(id) {
     const item = items.find(i => i.id === id);
-    if (item) { item.done = !item.done; save(); render(); }
+    if (!item) return;
+    item.done = !item.done;
+    render();
+    try { await col.doc(id).update({ done: item.done }); cacheLocally(); } catch {}
   }
 
   function remove(id) {
-    // Find the li element and animate it out
     const filtered = getFiltered();
     const idx = filtered.findIndex(i => i.id === id);
     if (idx === -1) return;
-    const liEls = listEl.querySelectorAll('li');
-    const li = liEls[idx];
+    const li = listEl.querySelectorAll('li')[idx];
+    const doRemove = () => {
+      items = items.filter(i => i.id !== id);
+      cacheLocally();
+      render();
+      if (!id.startsWith('tmp_')) col.doc(id).delete().catch(() => {});
+    };
     if (li) {
       li.classList.add('removing');
-      li.addEventListener('animationend', () => {
-        items = items.filter(i => i.id !== id);
-        save();
-        render();
-      }, { once: true });
-    } else {
-      items = items.filter(i => i.id !== id);
-      save();
-      render();
-    }
+      li.addEventListener('animationend', doRemove, { once: true });
+    } else { doRemove(); }
   }
 
-  function clearDone() {
+  async function clearDone() {
+    const done = items.filter(i => i.done);
     items = items.filter(i => !i.done);
-    save();
+    cacheLocally();
     render();
+    try {
+      const batch = db.batch();
+      done.filter(i => !i.id.startsWith('tmp_')).forEach(i => batch.delete(col.doc(i.id)));
+      await batch.commit();
+    } catch {}
   }
 
-  /* ── Event listeners ─────────────────────────────────────── */
+  /* ── Refresh button ─────────────────────────────────────── */
+  const refreshBtn = document.getElementById('refresh-btn');
+  refreshBtn.addEventListener('click', () => {
+    refreshBtn.classList.add('spinning');
+    refreshBtn.addEventListener('animationend', () => refreshBtn.classList.remove('spinning'), { once: true });
+    loadFromFirestore();
+  });
+
+  /* ── Input listeners ────────────────────────────────────── */
   document.getElementById('add-btn').addEventListener('click', () => {
-    const input = document.getElementById('item-input');
-    addItem(input.value);
-    input.value = '';
-    input.focus();
+    const inp = document.getElementById('item-input');
+    addItem(inp.value); inp.value = ''; inp.focus();
   });
 
   document.getElementById('item-input').addEventListener('keydown', e => {
-    if (e.key === 'Enter') {
-      addItem(e.target.value);
-      e.target.value = '';
-    }
+    if (e.key === 'Enter') { addItem(e.target.value); e.target.value = ''; }
   });
 
   document.querySelectorAll('.filter-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       filter = btn.dataset.filter;
       document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      render();
+      btn.classList.add('active'); render();
     });
   });
 
   document.getElementById('clear-done').addEventListener('click', clearDone);
 
-  /* ── iOS install hint ─────────────────────────────────────── */
-  function isIOS() {
-    return /iphone|ipad|ipod/i.test(navigator.userAgent) && !window.MSStream;
-  }
-
-  function isStandalone() {
-    return window.navigator.standalone === true;
-  }
-
+  /* ── iOS install hint ───────────────────────────────────── */
+  function isIOS() { return /iphone|ipad|ipod/i.test(navigator.userAgent) && !window.MSStream; }
+  function isStandalone() { return window.navigator.standalone === true; }
   function dismissHint() {
     document.getElementById('install-hint').style.display = 'none';
     localStorage.setItem('install-hint-dismissed', '1');
   }
-
   if (isIOS() && !isStandalone() && !localStorage.getItem('install-hint-dismissed')) {
     document.getElementById('install-hint').style.display = 'flex';
   }
 
   /* ── Service worker ─────────────────────────────────────── */
   if ('serviceWorker' in navigator) {
-    window.addEventListener('load', () => {
-      navigator.serviceWorker.register('./sw.js').catch(() => {});
-    });
+    window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js').catch(() => {}));
   }
 
-  /* ── Init ─────────────────────────────────────────────────── */
-  load();
-  render();
+  /* ── Init ───────────────────────────────────────────────── */
+  loadFromFirestore();
 </script>
 </body>
 </html>
