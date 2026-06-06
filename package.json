@@ -1,0 +1,21 @@
+{
+  "name": "teat",
+  "version": "1.0.0",
+  "description": "",
+  "main": "sw.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "http://local_proxy@127.0.0.1:39123/git/ofirgeula-hash/teat"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@playwright/test": "^1.60.0",
+    "lighthouse": "^13.3.0",
+    "serve": "^14.2.6"
+  }
+}

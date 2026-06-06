@@ -24,7 +24,7 @@
       --danger:    #ef4444;
       --success:   #22c55e;
       --text:      #e2e8f0;
-      --muted:     #64748b;
+      --muted:     #8896a8;
       --border:    #2d2d4a;
       --radius:    14px;
       --safe-top:  env(safe-area-inset-top, 0px);
@@ -193,8 +193,8 @@
     }
 
     .filter-btn.active {
-      background: var(--accent);
-      border-color: var(--accent);
+      background: #4f46e5;
+      border-color: #4f46e5;
       color: #fff;
       font-weight: 600;
     }
@@ -381,7 +381,7 @@
   </style>
 </head>
 <body>
-<div id="app">
+<main id="app">
 
   <header>
     <div class="header-icon">🛒</div>
@@ -439,13 +439,13 @@
   </div>
 
   <!-- iOS install hint -->
-  <div id="install-hint" style="display:none">
+  <div id="install-hint" role="complementary" style="display:none">
     <span class="hint-icon">📲</span>
     <span>להוספה למסך הבית: לחץ על <strong>שתף</strong> ← <strong>הוסף למסך הבית</strong></span>
     <button onclick="dismissHint()" aria-label="סגור">✕</button>
   </div>
 
-</div>
+</main>
 
 <script>
   /* ── State ─────────────────────────────────────────────── */
