@@ -50,6 +50,7 @@
       padding-bottom: var(--safe-bot);
     }
 
+    /* ── Header ── */
     header {
       padding: 0 20px 16px;
       display: flex;
@@ -58,7 +59,6 @@
     }
 
     .header-icon { font-size: 28px; line-height: 1; }
-
     .header-text { flex: 1; }
 
     .header-text h1 {
@@ -71,337 +71,256 @@
       background-clip: text;
     }
 
-    .header-text .subtitle {
-      font-size: 12px;
-      color: var(--muted);
-      margin-top: 2px;
-    }
-
-    /* Sync status */
-    .sync-row {
-      display: flex;
-      align-items: center;
-      gap: 5px;
-      margin-top: 2px;
-    }
+    .sync-row { display: flex; align-items: center; gap: 5px; margin-top: 2px; }
 
     .sync-dot {
-      width: 6px;
-      height: 6px;
-      border-radius: 50%;
-      background: var(--muted);
-      flex-shrink: 0;
+      width: 6px; height: 6px; border-radius: 50%;
+      background: var(--muted); flex-shrink: 0;
     }
-
     .sync-dot.synced  { background: var(--success); }
     .sync-dot.syncing { background: #f59e0b; animation: pulse 1s infinite; }
     .sync-dot.offline { background: var(--danger); }
 
-    @keyframes pulse {
-      0%, 100% { opacity: 1; }
-      50%       { opacity: 0.3; }
-    }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.3} }
 
-    .sync-text {
-      font-size: 11px;
-      color: var(--muted);
-    }
+    .sync-text { font-size: 11px; color: var(--muted); }
 
-    /* Refresh button */
     #refresh-btn {
       background: none;
       border: 1px solid var(--border);
       color: var(--muted);
-      font-size: 16px;
-      width: 36px;
-      height: 36px;
+      font-size: 18px;
+      width: 36px; height: 36px;
       border-radius: 10px;
       cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
+      display: flex; align-items: center; justify-content: center;
       transition: all 0.15s;
       flex-shrink: 0;
     }
-
     #refresh-btn:active { color: var(--accent2); border-color: var(--accent2); }
     #refresh-btn.spinning { animation: spin 0.6s linear; }
-
     @keyframes spin { to { transform: rotate(360deg); } }
 
+    /* ── Stats ── */
     .stats {
-      margin: 0 20px 16px;
+      margin: 0 20px 14px;
       background: var(--surface);
       border-radius: var(--radius);
       padding: 10px 16px;
-      display: flex;
-      gap: 20px;
+      display: flex; gap: 20px;
       border: 1px solid var(--border);
     }
+    .stat { display: flex; flex-direction: column; align-items: center; flex: 1; }
+    .stat-value { font-size: 22px; font-weight: 700; color: var(--accent2); }
+    .stat-label { font-size: 10px; color: var(--muted); margin-top: 2px; text-transform: uppercase; letter-spacing: .5px; }
+    .stat-divider { width: 1px; background: var(--border); align-self: stretch; }
 
-    .stat {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      flex: 1;
-    }
-
-    .stat-value {
-      font-size: 22px;
-      font-weight: 700;
-      color: var(--accent2);
-    }
-
-    .stat-label {
-      font-size: 10px;
-      color: var(--muted);
-      margin-top: 2px;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-    }
-
-    .stat-divider {
-      width: 1px;
-      background: var(--border);
-      align-self: stretch;
-    }
-
-    .input-area { padding: 0 20px 16px; }
+    /* ── Input ── */
+    .input-area { padding: 0 20px 12px; }
 
     .input-row {
-      display: flex;
-      gap: 10px;
+      display: flex; gap: 10px;
       background: var(--surface);
       border: 1px solid var(--border);
       border-radius: var(--radius);
       padding: 8px 8px 8px 12px;
       transition: border-color 0.2s;
     }
-
     .input-row:focus-within {
       border-color: var(--accent);
-      box-shadow: 0 0 0 3px rgba(108, 99, 255, 0.15);
+      box-shadow: 0 0 0 3px rgba(108,99,255,.15);
     }
-
     #item-input {
-      flex: 1;
-      background: none;
-      border: none;
-      outline: none;
-      font-size: 16px;
-      color: var(--text);
-      font-family: inherit;
-      text-align: right;
-      direction: rtl;
+      flex: 1; background: none; border: none; outline: none;
+      font-size: 16px; color: var(--text); font-family: inherit;
+      text-align: right; direction: rtl;
     }
-
     #item-input::placeholder { color: var(--muted); }
 
     #add-btn {
-      background: var(--accent);
-      color: #fff;
-      border: none;
-      border-radius: 10px;
-      width: 40px;
-      height: 40px;
-      font-size: 22px;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      flex-shrink: 0;
-      transition: background 0.15s, transform 0.1s;
+      background: var(--accent); color: #fff; border: none;
+      border-radius: 10px; width: 40px; height: 40px; font-size: 22px;
+      cursor: pointer; display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0; transition: background .15s, transform .1s;
       -webkit-appearance: none;
     }
+    #add-btn:active { background: var(--accent2); transform: scale(.93); }
 
-    #add-btn:active { background: var(--accent2); transform: scale(0.93); }
+    /* ── Store tabs ── */
+    .store-tabs-wrap { padding: 0 20px 10px; }
 
-    .filters {
-      padding: 0 20px 12px;
-      display: flex;
-      gap: 8px;
+    .store-tabs {
+      display: flex; gap: 6px;
+      overflow-x: auto; padding-bottom: 2px;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: none;
     }
+    .store-tabs::-webkit-scrollbar { display: none; }
 
-    .filter-btn {
-      flex: 1;
-      padding: 8px 4px;
-      border-radius: 10px;
+    .store-tab {
+      display: inline-flex; align-items: center; gap: 5px;
+      padding: 6px 14px;
+      border-radius: 20px;
       border: 1px solid var(--border);
       background: var(--surface);
       color: var(--muted);
-      font-size: 12px;
-      font-family: inherit;
-      cursor: pointer;
-      transition: all 0.15s;
-      text-align: center;
+      font-size: 13px; font-family: inherit;
+      cursor: pointer; white-space: nowrap;
+      transition: all .15s; flex-shrink: 0;
     }
+    .store-tab.active {
+      background: var(--accent); border-color: var(--accent);
+      color: #fff; font-weight: 600;
+    }
+    .store-tab.add-tab {
+      border-style: dashed; border-color: var(--accent2);
+      color: var(--accent2); padding: 6px 12px;
+    }
+    .store-tab-del {
+      font-size: 9px; opacity: 0; margin-right: -2px;
+      transition: opacity .15s;
+    }
+    .store-tab.active .store-tab-del { opacity: 0.7; }
+    .store-tab.active .store-tab-del:active { opacity: 1; }
 
+    /* ── Store add input ── */
+    .store-input-area {
+      padding: 0 20px 10px;
+      display: none;
+    }
+    .store-input-area.visible { display: block; }
+    .store-input-row {
+      display: flex; gap: 8px;
+      background: var(--surface2);
+      border: 1px solid var(--accent);
+      border-radius: var(--radius);
+      padding: 8px 10px;
+    }
+    #store-name-input {
+      flex: 1; background: none; border: none; outline: none;
+      font-size: 15px; color: var(--text); font-family: inherit;
+      text-align: right; direction: rtl;
+    }
+    #store-name-input::placeholder { color: var(--muted); }
+    .store-input-row button {
+      background: none; border: none; font-family: inherit;
+      cursor: pointer; font-size: 13px; padding: 2px 8px;
+      border-radius: 6px; transition: opacity .15s;
+    }
+    #store-save-btn   { color: var(--success); font-weight: 600; }
+    #store-cancel-btn { color: var(--muted); }
+
+    /* ── Filter tabs ── */
+    .filters { padding: 0 20px 12px; display: flex; gap: 8px; }
+    .filter-btn {
+      flex: 1; padding: 7px 4px;
+      border-radius: 10px; border: 1px solid var(--border);
+      background: var(--surface); color: var(--muted);
+      font-size: 12px; font-family: inherit;
+      cursor: pointer; transition: all .15s; text-align: center;
+    }
     .filter-btn.active {
-      background: #4f46e5;
-      border-color: #4f46e5;
-      color: #fff;
-      font-weight: 600;
+      background: #4f46e5; border-color: #4f46e5;
+      color: #fff; font-weight: 600;
     }
 
+    /* ── List ── */
     #list-container {
-      flex: 1;
-      overflow-y: auto;
+      flex: 1; overflow-y: auto;
       padding: 0 20px 16px;
       -webkit-overflow-scrolling: touch;
     }
-
     #list-container::-webkit-scrollbar { display: none; }
 
     .empty-state {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      height: 100%;
-      gap: 12px;
-      color: var(--muted);
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      height: 100%; gap: 12px; color: var(--muted);
     }
-
-    .empty-state .empty-icon { font-size: 56px; opacity: 0.4; }
+    .empty-state .empty-icon { font-size: 56px; opacity: .4; }
     .empty-state p { font-size: 15px; }
 
-    ul {
-      list-style: none;
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-    }
+    ul { list-style: none; display: flex; flex-direction: column; gap: 8px; }
 
     li {
       background: var(--surface);
       border: 1px solid var(--border);
       border-radius: var(--radius);
-      display: flex;
-      align-items: center;
-      gap: 12px;
+      display: flex; align-items: center; gap: 12px;
       padding: 14px 14px;
-      animation: slideIn 0.22s ease;
-      position: relative;
-      overflow: hidden;
+      animation: slideIn .22s ease;
+      position: relative; overflow: hidden;
     }
-
     li::before {
-      content: '';
-      position: absolute;
-      inset: 0 auto 0 0;
-      width: 3px;
-      background: var(--accent);
-      border-radius: 0 2px 2px 0;
-      opacity: 0;
-      transition: opacity 0.2s;
+      content: ''; position: absolute;
+      inset: 0 auto 0 0; width: 3px;
+      background: var(--accent); border-radius: 0 2px 2px 0;
+      opacity: 0; transition: opacity .2s;
     }
-
     li:has(.checkbox:checked)::before { background: var(--success); opacity: 1; }
 
-    @keyframes slideIn {
-      from { opacity: 0; transform: translateY(-8px); }
-      to   { opacity: 1; transform: translateY(0); }
-    }
-
-    li.removing { animation: slideOut 0.2s ease forwards; }
-
-    @keyframes slideOut {
-      to { opacity: 0; transform: translateX(30px); max-height: 0; padding: 0; margin: 0; }
-    }
+    @keyframes slideIn { from{opacity:0;transform:translateY(-8px)} to{opacity:1;transform:translateY(0)} }
+    li.removing { animation: slideOut .2s ease forwards; }
+    @keyframes slideOut { to{opacity:0;transform:translateX(30px);max-height:0;padding:0;margin:0} }
 
     .checkbox {
-      appearance: none;
-      -webkit-appearance: none;
-      width: 24px;
-      height: 24px;
-      border-radius: 50%;
-      border: 2px solid var(--border);
-      background: transparent;
-      cursor: pointer;
-      flex-shrink: 0;
-      transition: all 0.2s;
-      position: relative;
+      appearance: none; -webkit-appearance: none;
+      width: 24px; height: 24px; border-radius: 50%;
+      border: 2px solid var(--border); background: transparent;
+      cursor: pointer; flex-shrink: 0; transition: all .2s; position: relative;
     }
-
     .checkbox:checked { background: var(--success); border-color: var(--success); }
-
     .checkbox:checked::after {
-      content: '';
-      position: absolute;
-      inset: 0;
+      content: ''; position: absolute; inset: 0;
       background: url("data:image/svg+xml,%3Csvg viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M5 13l4 4L19 7' stroke='white' stroke-width='2.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center/14px no-repeat;
     }
 
     .item-text {
-      flex: 1;
-      font-size: 16px;
-      line-height: 1.4;
-      word-break: break-word;
-      transition: all 0.2s;
+      flex: 1; font-size: 16px; line-height: 1.4;
+      word-break: break-word; transition: all .2s;
     }
-
     li.done .item-text { text-decoration: line-through; color: var(--muted); }
 
-    .delete-btn {
-      background: none;
-      border: none;
-      color: var(--muted);
-      font-size: 18px;
-      cursor: pointer;
-      padding: 4px 6px;
-      border-radius: 8px;
-      flex-shrink: 0;
-      transition: color 0.15s, background 0.15s;
-      line-height: 1;
-    }
-
-    .delete-btn:active { color: var(--danger); background: rgba(239, 68, 68, 0.12); }
-
-    .actions-bar {
-      padding: 0 20px 12px;
-      display: flex;
-      justify-content: center;
-    }
-
-    #clear-done {
-      background: none;
+    /* Store badge (shown in "הכל" view) */
+    .store-badge {
+      font-size: 10px;
+      background: var(--surface2);
       border: 1px solid var(--border);
       color: var(--muted);
-      font-family: inherit;
-      font-size: 13px;
-      padding: 8px 20px;
-      border-radius: 20px;
-      cursor: pointer;
-      transition: all 0.15s;
-      display: none;
+      padding: 2px 7px; border-radius: 10px;
+      white-space: nowrap; flex-shrink: 0;
     }
 
+    .delete-btn {
+      background: none; border: none; color: var(--muted);
+      font-size: 18px; cursor: pointer;
+      padding: 4px 6px; border-radius: 8px; flex-shrink: 0;
+      transition: color .15s, background .15s; line-height: 1;
+    }
+    .delete-btn:active { color: var(--danger); background: rgba(239,68,68,.12); }
+
+    /* ── Bottom ── */
+    .actions-bar { padding: 0 20px 12px; display: flex; justify-content: center; }
+    #clear-done {
+      background: none; border: 1px solid var(--border);
+      color: var(--muted); font-family: inherit; font-size: 13px;
+      padding: 8px 20px; border-radius: 20px; cursor: pointer;
+      transition: all .15s; display: none;
+    }
     #clear-done.visible { display: block; }
     #clear-done:active { color: var(--danger); border-color: var(--danger); }
 
     #install-hint {
       margin: 0 20px 10px;
-      background: var(--surface2);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      padding: 10px 14px;
-      font-size: 12px;
-      color: var(--muted);
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      line-height: 1.5;
+      background: var(--surface2); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 10px 14px;
+      font-size: 12px; color: var(--muted);
+      display: flex; align-items: center; gap: 8px; line-height: 1.5;
     }
-
     #install-hint .hint-icon { font-size: 18px; flex-shrink: 0; }
     #install-hint button {
-      background: none;
-      border: none;
-      color: var(--muted);
-      font-size: 16px;
-      cursor: pointer;
-      margin-right: auto;
-      padding: 0 4px;
+      background: none; border: none; color: var(--muted);
+      font-size: 16px; cursor: pointer; margin-right: auto; padding: 0 4px;
     }
   </style>
 </head>
@@ -444,6 +363,21 @@
     </div>
   </div>
 
+  <!-- Store tabs -->
+  <div class="store-tabs-wrap">
+    <div class="store-tabs" id="store-tabs"></div>
+  </div>
+
+  <!-- Add store input (hidden by default) -->
+  <div class="store-input-area" id="store-input-area">
+    <div class="store-input-row">
+      <input id="store-name-input" type="text" placeholder="שם החנות (למשל: שופרסל)…" autocomplete="off" />
+      <button id="store-save-btn">שמור</button>
+      <button id="store-cancel-btn">ביטול</button>
+    </div>
+  </div>
+
+  <!-- Status filter -->
   <div class="filters">
     <button class="filter-btn active" data-filter="all">הכל</button>
     <button class="filter-btn" data-filter="active">פעיל</button>
@@ -471,7 +405,7 @@
 </main>
 
 <script>
-  /* ── Firebase ───────────────────────────────────────────── */
+  /* ── Firebase ── */
   const firebaseConfig = {
     apiKey:            "AIzaSyB-sa9xR6DxdYv6DCAUn1Ze1Kzb6TMuxzA",
     authDomain:        "shopping-list-db6a8.firebaseapp.com",
@@ -480,48 +414,196 @@
     messagingSenderId: "722011046106",
     appId:             "1:722011046106:web:0734fe777690e1270265e3"
   };
-
   firebase.initializeApp(firebaseConfig);
-  const db = firebase.firestore();
+  const db  = firebase.firestore();
   const col = db.collection('items');
+  const storesCol = db.collection('stores');
 
-  /* ── State ──────────────────────────────────────────────── */
+  /* ── State ── */
   let items  = [];
+  let stores = [];
+  let selectedStore = 'all'; // 'all' | null (כללי) | store.id
   let filter = 'all';
-  const CACHE_KEY = 'shopping-list-items';
 
-  /* ── Sync status ────────────────────────────────────────── */
-  const syncDot  = document.getElementById('sync-dot');
-  const syncText = document.getElementById('sync-text');
+  const CACHE_KEY   = 'shopping-list-items';
+  const STORES_KEY  = 'shopping-list-stores';
 
-  function setSyncStatus(state) {
-    syncDot.className = 'sync-dot ' + state;
-    syncText.textContent =
-      state === 'synced'  ? 'מסונכרן ✓' :
-      state === 'syncing' ? 'מסנכרן…'   :
-                            'לא מחובר — גרסה שמורה';
-  }
-
-  /* ── DOM refs ───────────────────────────────────────────── */
+  /* ── DOM ── */
   const listEl       = document.getElementById('list');
   const emptyEl      = document.getElementById('empty-state');
   const clearDoneBtn = document.getElementById('clear-done');
   const statTotal    = document.getElementById('stat-total');
   const statRemain   = document.getElementById('stat-remaining');
   const statDone     = document.getElementById('stat-done');
+  const syncDot      = document.getElementById('sync-dot');
+  const syncText     = document.getElementById('sync-text');
+  const storeTabsEl  = document.getElementById('store-tabs');
 
-  /* ── Render ─────────────────────────────────────────────── */
+  /* ── Sync status ── */
+  function setSyncStatus(state) {
+    syncDot.className = 'sync-dot ' + state;
+    syncText.textContent =
+      state === 'synced'  ? 'מסונכרן ✓' :
+      state === 'syncing' ? 'מסנכרן…'   : 'לא מחובר — גרסה שמורה';
+  }
+
+  /* ── Cache ── */
+  function cacheLocally() {
+    localStorage.setItem(CACHE_KEY,  JSON.stringify(items));
+    localStorage.setItem(STORES_KEY, JSON.stringify(stores));
+  }
+
+  /* ── Load ── */
+  async function init() {
+    setSyncStatus('syncing');
+    try {
+      const [storesSnap, itemsSnap] = await Promise.all([
+        storesCol.orderBy('order').get(),
+        col.orderBy('order', 'desc').get()
+      ]);
+      stores = storesSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+      items  = itemsSnap.docs.map(d => ({ id: d.id, storeId: null, ...d.data() }));
+      cacheLocally();
+      setSyncStatus('synced');
+    } catch {
+      try { items  = JSON.parse(localStorage.getItem(CACHE_KEY))  || []; } catch { items  = []; }
+      try { stores = JSON.parse(localStorage.getItem(STORES_KEY)) || []; } catch { stores = []; }
+      setSyncStatus('offline');
+    }
+    renderStoreTabs();
+    render();
+  }
+
+  /* ── Store tabs ── */
+  function renderStoreTabs() {
+    storeTabsEl.innerHTML = '';
+
+    // "הכל"
+    storeTabsEl.appendChild(makeStoreTab('all', 'הכל', false));
+    // "כללי" (items with no store)
+    storeTabsEl.appendChild(makeStoreTab(null, 'כללי', false));
+
+    stores.forEach(s => storeTabsEl.appendChild(makeStoreTab(s.id, s.name, true)));
+
+    const addBtn = document.createElement('button');
+    addBtn.className = 'store-tab add-tab';
+    addBtn.textContent = '＋ חנות';
+    addBtn.addEventListener('click', showStoreInput);
+    storeTabsEl.appendChild(addBtn);
+  }
+
+  function makeStoreTab(id, name, canDelete) {
+    const btn = document.createElement('button');
+    const isActive = selectedStore === id || (id === null && selectedStore === null);
+    btn.className = 'store-tab' + (isActive ? ' active' : '');
+
+    const nameSpan = document.createElement('span');
+    nameSpan.textContent = name;
+    btn.appendChild(nameSpan);
+
+    if (canDelete) {
+      const x = document.createElement('span');
+      x.className = 'store-tab-del';
+      x.textContent = '✕';
+      x.setAttribute('role', 'button');
+      x.setAttribute('aria-label', 'מחק חנות');
+      x.addEventListener('click', e => {
+        e.stopPropagation();
+        if (confirm(`למחוק את "${name}"?\nהפריטים שלה יועברו ל"כללי".`)) deleteStore(id);
+      });
+      btn.appendChild(x);
+    }
+
+    btn.addEventListener('click', () => {
+      selectedStore = id;
+      renderStoreTabs();
+      render();
+    });
+
+    return btn;
+  }
+
+  /* ── Store CRUD ── */
+  async function addStore(name) {
+    name = name.trim();
+    if (!name) return;
+    const order = Date.now();
+    const tempId = 'tmp_' + order;
+    stores.push({ id: tempId, name, order });
+    renderStoreTabs();
+    try {
+      const ref = await storesCol.add({ name, order });
+      const idx = stores.findIndex(s => s.id === tempId);
+      if (idx !== -1) stores[idx].id = ref.id;
+      cacheLocally();
+      renderStoreTabs();
+    } catch {}
+  }
+
+  async function deleteStore(id) {
+    stores = stores.filter(s => s.id !== id);
+    const affected = items.filter(i => i.storeId === id);
+    affected.forEach(i => { i.storeId = null; });
+    if (selectedStore === id) selectedStore = 'all';
+    renderStoreTabs();
+    render();
+    try {
+      const batch = db.batch();
+      batch.delete(storesCol.doc(id));
+      affected.filter(i => !i.id.startsWith('tmp_'))
+              .forEach(i => batch.update(col.doc(i.id), { storeId: null }));
+      await batch.commit();
+      cacheLocally();
+    } catch {}
+  }
+
+  /* ── Store input UI ── */
+  function showStoreInput() {
+    document.getElementById('store-input-area').classList.add('visible');
+    document.getElementById('store-name-input').focus();
+  }
+
+  function hideStoreInput() {
+    document.getElementById('store-input-area').classList.remove('visible');
+    document.getElementById('store-name-input').value = '';
+  }
+
+  document.getElementById('store-save-btn').addEventListener('click', async () => {
+    const inp = document.getElementById('store-name-input');
+    if (inp.value.trim()) { await addStore(inp.value); hideStoreInput(); }
+  });
+
+  document.getElementById('store-cancel-btn').addEventListener('click', hideStoreInput);
+
+  document.getElementById('store-name-input').addEventListener('keydown', async e => {
+    if (e.key === 'Enter') {
+      if (e.target.value.trim()) { await addStore(e.target.value); hideStoreInput(); }
+    } else if (e.key === 'Escape') { hideStoreInput(); }
+  });
+
+  /* ── Render ── */
   function getFiltered() {
-    if (filter === 'active') return items.filter(i => !i.done);
-    if (filter === 'done')   return items.filter(i => i.done);
-    return items;
+    let result = selectedStore === 'all'
+      ? items
+      : items.filter(i => i.storeId === selectedStore);
+
+    if (filter === 'active') return result.filter(i => !i.done);
+    if (filter === 'done')   return result.filter(i => i.done);
+    return result;
+  }
+
+  function storeName(storeId) {
+    if (!storeId) return 'כללי';
+    const s = stores.find(s => s.id === storeId);
+    return s ? s.name : 'כללי';
   }
 
   function render() {
     const filtered = getFiltered();
-    const total    = items.length;
-    const done     = items.filter(i => i.done).length;
-    const remain   = total - done;
+    const viewItems = selectedStore === 'all' ? items : items.filter(i => i.storeId === selectedStore);
+    const total  = viewItems.length;
+    const done   = viewItems.filter(i => i.done).length;
+    const remain = total - done;
 
     statTotal.textContent  = total;
     statRemain.textContent = remain;
@@ -549,49 +631,41 @@
       const span = document.createElement('span');
       span.className = 'item-text'; span.textContent = item.text;
 
+      li.append(cb, span);
+
+      // Show store badge only in "הכל" view
+      if (selectedStore === 'all') {
+        const badge = document.createElement('span');
+        badge.className = 'store-badge';
+        badge.textContent = storeName(item.storeId);
+        li.appendChild(badge);
+      }
+
       const del = document.createElement('button');
       del.className = 'delete-btn'; del.innerHTML = '🗑';
       del.setAttribute('aria-label', 'מחק');
       del.addEventListener('click', () => remove(item.id));
+      li.appendChild(del);
 
-      li.append(cb, span, del);
       listEl.appendChild(li);
     });
   }
 
-  function cacheLocally() {
-    localStorage.setItem(CACHE_KEY, JSON.stringify(items));
-  }
-
-  /* ── Load from Firestore ────────────────────────────────── */
-  async function loadFromFirestore() {
-    setSyncStatus('syncing');
-    try {
-      const snap = await col.orderBy('order', 'desc').get();
-      items = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-      cacheLocally();
-      setSyncStatus('synced');
-    } catch {
-      try { items = JSON.parse(localStorage.getItem(CACHE_KEY)) || []; } catch { items = []; }
-      setSyncStatus('offline');
-    }
-    render();
-  }
-
-  /* ── Actions ────────────────────────────────────────────── */
+  /* ── Item CRUD ── */
   async function addItem(text) {
     text = text.trim();
     if (!text) return;
-    const order = Date.now();
-    const tempId = 'tmp_' + order;
-    items.unshift({ id: tempId, text, done: false, order });
+    const storeId = selectedStore === 'all' ? null : selectedStore;
+    const order   = Date.now();
+    const tempId  = 'tmp_' + order;
+    items.unshift({ id: tempId, text, done: false, storeId, order });
     render();
     try {
-      const ref = await col.add({ text, done: false, order });
+      const ref = await col.add({ text, done: false, storeId, order });
       const idx = items.findIndex(i => i.id === tempId);
       if (idx !== -1) items[idx].id = ref.id;
       cacheLocally();
-    } catch { /* stays in local state */ }
+    } catch {}
   }
 
   async function toggle(id) {
@@ -620,8 +694,8 @@
   }
 
   async function clearDone() {
-    const done = items.filter(i => i.done);
-    items = items.filter(i => !i.done);
+    const done = getFiltered().filter(i => i.done);
+    done.forEach(i => { items = items.filter(x => x.id !== i.id); });
     cacheLocally();
     render();
     try {
@@ -631,15 +705,15 @@
     } catch {}
   }
 
-  /* ── Refresh button ─────────────────────────────────────── */
+  /* ── Refresh ── */
   const refreshBtn = document.getElementById('refresh-btn');
   refreshBtn.addEventListener('click', () => {
     refreshBtn.classList.add('spinning');
     refreshBtn.addEventListener('animationend', () => refreshBtn.classList.remove('spinning'), { once: true });
-    loadFromFirestore();
+    init();
   });
 
-  /* ── Input listeners ────────────────────────────────────── */
+  /* ── Filter tabs ── */
   document.getElementById('add-btn').addEventListener('click', () => {
     const inp = document.getElementById('item-input');
     addItem(inp.value); inp.value = ''; inp.focus();
@@ -659,7 +733,7 @@
 
   document.getElementById('clear-done').addEventListener('click', clearDone);
 
-  /* ── iOS install hint ───────────────────────────────────── */
+  /* ── iOS install hint ── */
   function isIOS() { return /iphone|ipad|ipod/i.test(navigator.userAgent) && !window.MSStream; }
   function isStandalone() { return window.navigator.standalone === true; }
   function dismissHint() {
@@ -670,13 +744,13 @@
     document.getElementById('install-hint').style.display = 'flex';
   }
 
-  /* ── Service worker ─────────────────────────────────────── */
+  /* ── Service Worker ── */
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js').catch(() => {}));
   }
 
-  /* ── Init ───────────────────────────────────────────────── */
-  loadFromFirestore();
+  /* ── Boot ── */
+  init();
 </script>
 </body>
 </html>
