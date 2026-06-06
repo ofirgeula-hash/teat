@@ -1,0 +1,628 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#1a1a2e" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="קניות" />
+  <link rel="manifest" href="./manifest.json" />
+  <!-- Apple touch icons (inline SVG-based PNG via canvas would be ideal but we use a data URI) -->
+  <link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'%3E%3Crect width='192' height='192' rx='42' fill='%231a1a2e'/%3E%3Ctext x='96' y='130' font-size='100' text-anchor='middle' fill='%236c63ff'%3E🛒%3C/text%3E%3C/svg%3E" />
+  <title>רשימת קניות</title>
+  <style>
+    /* ── Reset & base ─────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #0f0f14;
+      --surface:   #1a1a2e;
+      --surface2:  #22223b;
+      --accent:    #6c63ff;
+      --accent2:   #a78bfa;
+      --danger:    #ef4444;
+      --success:   #22c55e;
+      --text:      #e2e8f0;
+      --muted:     #64748b;
+      --border:    #2d2d4a;
+      --radius:    14px;
+      --safe-top:  env(safe-area-inset-top, 0px);
+      --safe-bot:  env(safe-area-inset-bottom, 0px);
+    }
+
+    html, body {
+      height: 100%;
+      font-family: -apple-system, 'SF Pro Display', 'Segoe UI', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      overscroll-behavior: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    /* ── App shell ────────────────────────────────────────── */
+    #app {
+      display: flex;
+      flex-direction: column;
+      height: 100dvh;
+      max-width: 480px;
+      margin: 0 auto;
+      padding-top: max(var(--safe-top), 16px);
+      padding-bottom: var(--safe-bot);
+    }
+
+    /* ── Header ───────────────────────────────────────────── */
+    header {
+      padding: 0 20px 16px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .header-icon {
+      font-size: 28px;
+      line-height: 1;
+    }
+
+    .header-text h1 {
+      font-size: 22px;
+      font-weight: 700;
+      letter-spacing: -0.3px;
+      background: linear-gradient(135deg, var(--accent2), var(--accent));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .header-text .subtitle {
+      font-size: 12px;
+      color: var(--muted);
+      margin-top: 2px;
+    }
+
+    /* ── Stats bar ────────────────────────────────────────── */
+    .stats {
+      margin: 0 20px 16px;
+      background: var(--surface);
+      border-radius: var(--radius);
+      padding: 10px 16px;
+      display: flex;
+      gap: 20px;
+      border: 1px solid var(--border);
+    }
+
+    .stat {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      flex: 1;
+    }
+
+    .stat-value {
+      font-size: 22px;
+      font-weight: 700;
+      color: var(--accent2);
+    }
+
+    .stat-label {
+      font-size: 10px;
+      color: var(--muted);
+      margin-top: 2px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .stat-divider {
+      width: 1px;
+      background: var(--border);
+      align-self: stretch;
+    }
+
+    /* ── Input area ───────────────────────────────────────── */
+    .input-area {
+      padding: 0 20px 16px;
+    }
+
+    .input-row {
+      display: flex;
+      gap: 10px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 8px 8px 8px 12px;
+      transition: border-color 0.2s;
+    }
+
+    .input-row:focus-within {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(108, 99, 255, 0.15);
+    }
+
+    #item-input {
+      flex: 1;
+      background: none;
+      border: none;
+      outline: none;
+      font-size: 16px;
+      color: var(--text);
+      font-family: inherit;
+      text-align: right;
+      direction: rtl;
+    }
+
+    #item-input::placeholder { color: var(--muted); }
+
+    #add-btn {
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      border-radius: 10px;
+      width: 40px;
+      height: 40px;
+      font-size: 22px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      transition: background 0.15s, transform 0.1s;
+      -webkit-appearance: none;
+    }
+
+    #add-btn:active { background: var(--accent2); transform: scale(0.93); }
+
+    /* ── Filter tabs ──────────────────────────────────────── */
+    .filters {
+      padding: 0 20px 12px;
+      display: flex;
+      gap: 8px;
+    }
+
+    .filter-btn {
+      flex: 1;
+      padding: 8px 4px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--muted);
+      font-size: 12px;
+      font-family: inherit;
+      cursor: pointer;
+      transition: all 0.15s;
+      text-align: center;
+    }
+
+    .filter-btn.active {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #fff;
+      font-weight: 600;
+    }
+
+    /* ── List ─────────────────────────────────────────────── */
+    #list-container {
+      flex: 1;
+      overflow-y: auto;
+      padding: 0 20px 16px;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    #list-container::-webkit-scrollbar { display: none; }
+
+    .empty-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      gap: 12px;
+      color: var(--muted);
+    }
+
+    .empty-state .empty-icon { font-size: 56px; opacity: 0.4; }
+    .empty-state p { font-size: 15px; }
+
+    ul {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    /* ── List item ────────────────────────────────────────── */
+    li {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 14px 14px;
+      transition: opacity 0.2s, transform 0.2s;
+      animation: slideIn 0.22s ease;
+      position: relative;
+      overflow: hidden;
+    }
+
+    li::before {
+      content: '';
+      position: absolute;
+      inset: 0 auto 0 0;
+      width: 3px;
+      background: var(--accent);
+      border-radius: 0 2px 2px 0;
+      opacity: 0;
+      transition: opacity 0.2s;
+    }
+
+    li:has(.checkbox:checked)::before { background: var(--success); opacity: 1; }
+
+    @keyframes slideIn {
+      from { opacity: 0; transform: translateY(-8px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    li.removing {
+      animation: slideOut 0.2s ease forwards;
+    }
+
+    @keyframes slideOut {
+      to { opacity: 0; transform: translateX(30px); max-height: 0; padding: 0; margin: 0; }
+    }
+
+    /* Checkbox */
+    .checkbox {
+      appearance: none;
+      -webkit-appearance: none;
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      border: 2px solid var(--border);
+      background: transparent;
+      cursor: pointer;
+      flex-shrink: 0;
+      transition: all 0.2s;
+      position: relative;
+    }
+
+    .checkbox:checked {
+      background: var(--success);
+      border-color: var(--success);
+    }
+
+    .checkbox:checked::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: url("data:image/svg+xml,%3Csvg viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M5 13l4 4L19 7' stroke='white' stroke-width='2.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center/14px no-repeat;
+    }
+
+    /* Item text */
+    .item-text {
+      flex: 1;
+      font-size: 16px;
+      line-height: 1.4;
+      word-break: break-word;
+      transition: all 0.2s;
+    }
+
+    li.done .item-text {
+      text-decoration: line-through;
+      color: var(--muted);
+    }
+
+    /* Delete button */
+    .delete-btn {
+      background: none;
+      border: none;
+      color: var(--muted);
+      font-size: 18px;
+      cursor: pointer;
+      padding: 4px 6px;
+      border-radius: 8px;
+      flex-shrink: 0;
+      transition: color 0.15s, background 0.15s;
+      line-height: 1;
+    }
+
+    .delete-btn:active {
+      color: var(--danger);
+      background: rgba(239, 68, 68, 0.12);
+    }
+
+    /* ── Clear done button ────────────────────────────────── */
+    .actions-bar {
+      padding: 0 20px 12px;
+      display: flex;
+      justify-content: center;
+    }
+
+    #clear-done {
+      background: none;
+      border: 1px solid var(--border);
+      color: var(--muted);
+      font-family: inherit;
+      font-size: 13px;
+      padding: 8px 20px;
+      border-radius: 20px;
+      cursor: pointer;
+      transition: all 0.15s;
+      display: none;
+    }
+
+    #clear-done.visible { display: block; }
+    #clear-done:active { color: var(--danger); border-color: var(--danger); }
+
+    /* ── iOS install hint ─────────────────────────────────── */
+    #install-hint {
+      margin: 0 20px 10px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 10px 14px;
+      font-size: 12px;
+      color: var(--muted);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      line-height: 1.5;
+    }
+
+    #install-hint .hint-icon { font-size: 18px; flex-shrink: 0; }
+    #install-hint button {
+      background: none;
+      border: none;
+      color: var(--muted);
+      font-size: 16px;
+      cursor: pointer;
+      margin-right: auto;
+      padding: 0 4px;
+    }
+  </style>
+</head>
+<body>
+<div id="app">
+
+  <header>
+    <div class="header-icon">🛒</div>
+    <div class="header-text">
+      <h1>רשימת קניות</h1>
+      <div class="subtitle" id="subtitle">טוען…</div>
+    </div>
+  </header>
+
+  <!-- Stats -->
+  <div class="stats">
+    <div class="stat">
+      <span class="stat-value" id="stat-total">0</span>
+      <span class="stat-label">סה״כ</span>
+    </div>
+    <div class="stat-divider"></div>
+    <div class="stat">
+      <span class="stat-value" id="stat-remaining">0</span>
+      <span class="stat-label">נותר</span>
+    </div>
+    <div class="stat-divider"></div>
+    <div class="stat">
+      <span class="stat-value" id="stat-done">0</span>
+      <span class="stat-label">הושלם</span>
+    </div>
+  </div>
+
+  <!-- Input -->
+  <div class="input-area">
+    <div class="input-row">
+      <input id="item-input" type="text" placeholder="הוסף פריט לרשימה…" autocomplete="off" autocorrect="off" />
+      <button id="add-btn" aria-label="הוסף">＋</button>
+    </div>
+  </div>
+
+  <!-- Filters -->
+  <div class="filters">
+    <button class="filter-btn active" data-filter="all">הכל</button>
+    <button class="filter-btn" data-filter="active">פעיל</button>
+    <button class="filter-btn" data-filter="done">הושלם</button>
+  </div>
+
+  <!-- List -->
+  <div id="list-container">
+    <div class="empty-state" id="empty-state">
+      <span class="empty-icon">🛍️</span>
+      <p>הרשימה ריקה</p>
+    </div>
+    <ul id="list"></ul>
+  </div>
+
+  <!-- Actions -->
+  <div class="actions-bar">
+    <button id="clear-done">מחק פריטים שהושלמו</button>
+  </div>
+
+  <!-- iOS install hint -->
+  <div id="install-hint" style="display:none">
+    <span class="hint-icon">📲</span>
+    <span>להוספה למסך הבית: לחץ על <strong>שתף</strong> ← <strong>הוסף למסך הבית</strong></span>
+    <button onclick="dismissHint()" aria-label="סגור">✕</button>
+  </div>
+
+</div>
+
+<script>
+  /* ── State ─────────────────────────────────────────────── */
+  let items = [];
+  let filter = 'all';
+
+  const STORAGE_KEY = 'shopping-list-items';
+
+  function load() {
+    try {
+      items = JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
+    } catch { items = []; }
+  }
+
+  function save() {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
+  }
+
+  /* ── Render ─────────────────────────────────────────────── */
+  const listEl       = document.getElementById('list');
+  const emptyEl      = document.getElementById('empty-state');
+  const clearDoneBtn = document.getElementById('clear-done');
+  const statTotal    = document.getElementById('stat-total');
+  const statRemain   = document.getElementById('stat-remaining');
+  const statDone     = document.getElementById('stat-done');
+  const subtitle     = document.getElementById('subtitle');
+
+  function getFiltered() {
+    if (filter === 'active') return items.filter(i => !i.done);
+    if (filter === 'done')   return items.filter(i => i.done);
+    return items;
+  }
+
+  function render() {
+    const filtered = getFiltered();
+    const total    = items.length;
+    const done     = items.filter(i => i.done).length;
+    const remain   = total - done;
+
+    statTotal.textContent  = total;
+    statRemain.textContent = remain;
+    statDone.textContent   = done;
+    subtitle.textContent   = total === 0 ? 'ריק' : `${remain} פריטים נותרו`;
+
+    clearDoneBtn.classList.toggle('visible', done > 0);
+
+    listEl.innerHTML = '';
+
+    if (filtered.length === 0) {
+      emptyEl.style.display = 'flex';
+      listEl.style.display  = 'none';
+      return;
+    }
+
+    emptyEl.style.display = 'none';
+    listEl.style.display  = 'flex';
+
+    filtered.forEach(item => {
+      const li = document.createElement('li');
+      if (item.done) li.classList.add('done');
+
+      const cb = document.createElement('input');
+      cb.type      = 'checkbox';
+      cb.className = 'checkbox';
+      cb.checked   = item.done;
+      cb.addEventListener('change', () => toggle(item.id));
+
+      const span = document.createElement('span');
+      span.className   = 'item-text';
+      span.textContent = item.text;
+
+      const del = document.createElement('button');
+      del.className = 'delete-btn';
+      del.innerHTML = '🗑';
+      del.setAttribute('aria-label', 'מחק');
+      del.addEventListener('click', () => remove(item.id));
+
+      li.append(cb, span, del);
+      listEl.appendChild(li);
+    });
+  }
+
+  /* ── Actions ─────────────────────────────────────────────── */
+  function addItem(text) {
+    text = text.trim();
+    if (!text) return;
+    items.unshift({ id: Date.now(), text, done: false });
+    save();
+    render();
+  }
+
+  function toggle(id) {
+    const item = items.find(i => i.id === id);
+    if (item) { item.done = !item.done; save(); render(); }
+  }
+
+  function remove(id) {
+    // Find the li element and animate it out
+    const filtered = getFiltered();
+    const idx = filtered.findIndex(i => i.id === id);
+    if (idx === -1) return;
+    const liEls = listEl.querySelectorAll('li');
+    const li = liEls[idx];
+    if (li) {
+      li.classList.add('removing');
+      li.addEventListener('animationend', () => {
+        items = items.filter(i => i.id !== id);
+        save();
+        render();
+      }, { once: true });
+    } else {
+      items = items.filter(i => i.id !== id);
+      save();
+      render();
+    }
+  }
+
+  function clearDone() {
+    items = items.filter(i => !i.done);
+    save();
+    render();
+  }
+
+  /* ── Event listeners ─────────────────────────────────────── */
+  document.getElementById('add-btn').addEventListener('click', () => {
+    const input = document.getElementById('item-input');
+    addItem(input.value);
+    input.value = '';
+    input.focus();
+  });
+
+  document.getElementById('item-input').addEventListener('keydown', e => {
+    if (e.key === 'Enter') {
+      addItem(e.target.value);
+      e.target.value = '';
+    }
+  });
+
+  document.querySelectorAll('.filter-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      filter = btn.dataset.filter;
+      document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      render();
+    });
+  });
+
+  document.getElementById('clear-done').addEventListener('click', clearDone);
+
+  /* ── iOS install hint ─────────────────────────────────────── */
+  function isIOS() {
+    return /iphone|ipad|ipod/i.test(navigator.userAgent) && !window.MSStream;
+  }
+
+  function isStandalone() {
+    return window.navigator.standalone === true;
+  }
+
+  function dismissHint() {
+    document.getElementById('install-hint').style.display = 'none';
+    localStorage.setItem('install-hint-dismissed', '1');
+  }
+
+  if (isIOS() && !isStandalone() && !localStorage.getItem('install-hint-dismissed')) {
+    document.getElementById('install-hint').style.display = 'flex';
+  }
+
+  /* ── Service worker ─────────────────────────────────────── */
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('./sw.js').catch(() => {});
+    });
+  }
+
+  /* ── Init ─────────────────────────────────────────────────── */
+  load();
+  render();
+</script>
+</body>
+</html>
