@@ -46,8 +46,19 @@
       height: 100dvh;
       max-width: 480px;
       margin: 0 auto;
-      padding-top: max(var(--safe-top), 16px);
       padding-bottom: var(--safe-bot);
+    }
+
+    /* ── Top panel (add section) ── */
+    .top-panel {
+      background: var(--surface);
+      border-radius: 0 0 28px 28px;
+      box-shadow: 0 8px 24px rgba(74,125,184,.13);
+      padding-top: max(var(--safe-top), 16px);
+      padding-bottom: 16px;
+      flex-shrink: 0;
+      position: relative;
+      z-index: 1;
     }
 
     /* ── Header ── */
@@ -188,7 +199,7 @@
     }
 
     /* ── Store tabs ── */
-    .store-tabs-wrap { padding: 2px 20px 10px; }
+    .store-tabs-wrap { padding: 20px 20px 10px; }
 
     .store-tabs {
       display: flex; gap: 6px;
@@ -353,41 +364,48 @@
 <body>
 <main id="app">
 
-  <header>
-    <div class="header-icon">🛒</div>
-    <div class="header-text">
-      <h1>רשימת קניות</h1>
-      <div class="sync-row">
-        <div class="sync-dot" id="sync-dot"></div>
-        <span class="sync-text" id="sync-text">מתחבר…</span>
+  <!-- ═══ TOP PANEL: add section ═══ -->
+  <div class="top-panel">
+
+    <header>
+      <div class="header-icon">🛒</div>
+      <div class="header-text">
+        <h1>רשימת קניות</h1>
+        <div class="sync-row">
+          <div class="sync-dot" id="sync-dot"></div>
+          <span class="sync-text" id="sync-text">מתחבר…</span>
+        </div>
+      </div>
+      <button id="refresh-btn" aria-label="רענן">↻</button>
+    </header>
+
+    <!-- Add store – above input -->
+    <div class="add-store-section">
+      <div id="add-store-collapsed">
+        <button class="add-store-trigger" id="show-store-btn">＋ הוסף חנות</button>
+      </div>
+      <div id="add-store-expanded" style="display:none">
+        <div class="store-input-row">
+          <input id="store-name-input" type="text" placeholder="שם החנות (למשל: שופרסל)…" autocomplete="off" />
+          <button id="store-save-btn">שמור</button>
+          <button id="store-cancel-btn">ביטול</button>
+        </div>
       </div>
     </div>
-    <button id="refresh-btn" aria-label="רענן">↻</button>
-  </header>
 
-  <!-- Add store – above input -->
-  <div class="add-store-section">
-    <div id="add-store-collapsed">
-      <button class="add-store-trigger" id="show-store-btn">＋ הוסף חנות</button>
-    </div>
-    <div id="add-store-expanded" style="display:none">
-      <div class="store-input-row">
-        <input id="store-name-input" type="text" placeholder="שם החנות (למשל: שופרסל)…" autocomplete="off" />
-        <button id="store-save-btn">שמור</button>
-        <button id="store-cancel-btn">ביטול</button>
+    <!-- Add item -->
+    <div class="input-area">
+      <div class="input-row">
+        <input id="item-input" type="text" placeholder="הוסף פריט לרשימה…" autocomplete="off" autocorrect="off" />
+        <button id="add-btn" aria-label="הוסף">＋</button>
       </div>
+      <!-- Store picker pills (hidden when no stores) -->
+      <div class="store-picker" id="store-picker"></div>
     </div>
-  </div>
 
-  <!-- Add item -->
-  <div class="input-area">
-    <div class="input-row">
-      <input id="item-input" type="text" placeholder="הוסף פריט לרשימה…" autocomplete="off" autocorrect="off" />
-      <button id="add-btn" aria-label="הוסף">＋</button>
-    </div>
-    <!-- Store picker pills (hidden when no stores) -->
-    <div class="store-picker" id="store-picker"></div>
-  </div>
+  </div><!-- /top-panel -->
+
+  <!-- ═══ CONTENT: list section ═══ -->
 
   <!-- Store tabs (wrap to multiple rows) -->
   <div class="store-tabs-wrap">
@@ -540,13 +558,10 @@
   function renderStorePicker() {
     storePickerEl.innerHTML = '';
     if (stores.length === 0) return;
-
-    const noPill = document.createElement('button');
-    noPill.className = 'store-pill' + (addStoreId === null ? ' selected' : '');
-    noPill.textContent = 'ללא חנות';
-    noPill.addEventListener('click', () => { addStoreId = null; renderStorePicker(); });
-    storePickerEl.appendChild(noPill);
-
+    // default to first store if none selected
+    if (!addStoreId || !stores.find(s => s.id === addStoreId)) {
+      addStoreId = stores[0].id;
+    }
     stores.forEach(s => {
       const pill = document.createElement('button');
       pill.className = 'store-pill' + (addStoreId === s.id ? ' selected' : '');
@@ -580,7 +595,7 @@
     const affected = items.filter(i => i.storeId === id);
     affected.forEach(i => { i.storeId = null; });
     if (selectedStore === id) selectedStore = 'all';
-    if (addStoreId   === id) addStoreId   = null;
+    if (addStoreId   === id) addStoreId   = stores[0]?.id || null;
     renderStoreTabs();
     renderStorePicker();
     render();
