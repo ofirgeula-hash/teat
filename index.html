@@ -414,8 +414,7 @@
 
   <!-- Status filter -->
   <div class="filters">
-    <button class="filter-btn active" data-filter="all">הכל</button>
-    <button class="filter-btn" data-filter="active">פעיל</button>
+    <button class="filter-btn active" data-filter="active">פעיל</button>
     <button class="filter-btn" data-filter="done">הושלם</button>
   </div>
 
@@ -456,7 +455,7 @@
   let items         = [];
   let stores        = [];
   let selectedStore = 'all';   // 'all' | store.id
-  let filter        = 'all';
+  let filter        = 'active';
   let addStoreId    = null;    // null = no store, or store.id
 
   const CACHE_KEY  = 'shopping-list-items';
@@ -500,6 +499,8 @@
       try { stores = JSON.parse(localStorage.getItem(STORES_KEY)) || []; } catch { stores = []; }
       setSyncStatus('offline');
     }
+    // default to first store (no "הכל" tab)
+    if (stores.length > 0 && selectedStore === 'all') selectedStore = stores[0].id;
     renderStoreTabs();
     renderStorePicker();
     render();
@@ -513,7 +514,6 @@
 
   function renderStoreTabs() {
     storeTabsEl.innerHTML = '';
-    storeTabsEl.appendChild(makeStoreTab('all', 'הכל', false));
     stores.forEach(s => storeTabsEl.appendChild(makeStoreTab(s.id, s.name, true)));
   }
 
@@ -594,7 +594,7 @@
     stores = stores.filter(s => s.id !== id);
     const affected = items.filter(i => i.storeId === id);
     affected.forEach(i => { i.storeId = null; });
-    if (selectedStore === id) selectedStore = 'all';
+    if (selectedStore === id) selectedStore = stores[0]?.id || 'all';
     if (addStoreId   === id) addStoreId   = stores[0]?.id || null;
     renderStoreTabs();
     renderStorePicker();
