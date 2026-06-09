@@ -145,57 +145,24 @@
       font-family: inherit; font-size: 13px; cursor: pointer; padding: 5px 6px;
     }
 
-    /* ── Input area ── */
-    .input-area { padding: 0 20px 8px; }
-
-    .input-row {
-      display: flex; gap: 10px;
+    /* ── Add row (inline in list) ── */
+    .add-row {
       background: var(--surface);
-      border: 1.5px solid var(--border);
+      border: 1.5px dashed var(--border);
       border-radius: var(--radius);
-      padding: 8px 8px 8px 12px;
-      transition: border-color 0.2s;
-      box-shadow: 0 2px 6px rgba(0,0,0,.05);
+      display: flex; align-items: center; gap: 10px;
+      padding: 12px 14px; cursor: pointer;
+      transition: border-color .15s;
+      animation: none;
     }
-    .input-row:focus-within {
-      border-color: var(--accent);
-      box-shadow: 0 0 0 3px rgba(74,125,184,.13);
-    }
-    #item-input {
+    .add-row:active { border-color: var(--accent); }
+    .add-row::before { display: none; }
+    .add-row-icon { color: var(--accent); font-size: 20px; flex-shrink: 0; line-height: 1; }
+    .add-row-placeholder { color: var(--muted); font-size: 16px; flex: 1; }
+    .add-row-input {
       flex: 1; background: none; border: none; outline: none;
       font-size: 16px; color: var(--text); font-family: inherit;
       text-align: right; direction: rtl;
-    }
-    #item-input::placeholder { color: var(--muted); }
-
-    #add-btn {
-      background: var(--accent); color: #fff; border: none;
-      border-radius: 10px; width: 40px; height: 40px; font-size: 22px;
-      cursor: pointer; display: flex; align-items: center; justify-content: center;
-      flex-shrink: 0; transition: background .15s, transform .1s;
-      -webkit-appearance: none;
-    }
-    #add-btn:active { background: var(--accent2); transform: scale(.93); }
-
-    /* ── Store picker (for adding items) ── */
-    .store-picker {
-      display: flex; gap: 6px; flex-wrap: wrap;
-      padding: 7px 0 2px;
-    }
-    .store-pill {
-      display: inline-flex; align-items: center;
-      padding: 4px 12px;
-      border-radius: 16px;
-      border: 1.5px solid var(--border);
-      background: var(--surface);
-      color: var(--muted);
-      font-size: 12px; font-family: inherit;
-      cursor: pointer; white-space: nowrap;
-      transition: all .15s;
-    }
-    .store-pill.selected {
-      background: var(--accent); border-color: var(--accent);
-      color: #fff; font-weight: 600;
     }
 
     /* ── Store tabs ── */
@@ -393,16 +360,6 @@
       </div>
     </div>
 
-    <!-- Add item -->
-    <div class="input-area">
-      <div class="input-row">
-        <input id="item-input" type="text" placeholder="הוסף פריט לרשימה…" autocomplete="off" autocorrect="off" />
-        <button id="add-btn" aria-label="הוסף">＋</button>
-      </div>
-      <!-- Store picker pills (hidden when no stores) -->
-      <div class="store-picker" id="store-picker"></div>
-    </div>
-
   </div><!-- /top-panel -->
 
   <!-- ═══ CONTENT: list section ═══ -->
@@ -456,7 +413,6 @@
   let stores        = [];
   let selectedStore = 'all';   // 'all' | store.id
   let filter        = 'active';
-  let addStoreId    = null;    // null = no store, or store.id
 
   const CACHE_KEY  = 'shopping-list-items';
   const STORES_KEY = 'shopping-list-stores';
@@ -467,7 +423,6 @@
   const syncDot       = document.getElementById('sync-dot');
   const syncText      = document.getElementById('sync-text');
   const storeTabsEl   = document.getElementById('store-tabs');
-  const storePickerEl = document.getElementById('store-picker');
 
   /* ── Sync status ── */
   function setSyncStatus(state) {
@@ -499,10 +454,8 @@
       try { stores = JSON.parse(localStorage.getItem(STORES_KEY)) || []; } catch { stores = []; }
       setSyncStatus('offline');
     }
-    // default to first store (no "הכל" tab)
     if (stores.length > 0 && selectedStore === 'all') selectedStore = stores[0].id;
     renderStoreTabs();
-    renderStorePicker();
     render();
   }
 
@@ -545,30 +498,11 @@
 
     btn.addEventListener('click', () => {
       selectedStore = id;
-      if (id !== 'all') addStoreId = id;
       renderStoreTabs();
-      renderStorePicker();
       render();
     });
 
     return btn;
-  }
-
-  /* ── Store picker (for add-item form) ── */
-  function renderStorePicker() {
-    storePickerEl.innerHTML = '';
-    if (stores.length === 0) return;
-    // default to first store if none selected
-    if (!addStoreId || !stores.find(s => s.id === addStoreId)) {
-      addStoreId = stores[0].id;
-    }
-    stores.forEach(s => {
-      const pill = document.createElement('button');
-      pill.className = 'store-pill' + (addStoreId === s.id ? ' selected' : '');
-      pill.textContent = s.name;
-      pill.addEventListener('click', () => { addStoreId = s.id; renderStorePicker(); });
-      storePickerEl.appendChild(pill);
-    });
   }
 
   /* ── Store CRUD ── */
@@ -579,14 +513,13 @@
     const tempId = 'tmp_' + order;
     stores.push({ id: tempId, name, order });
     renderStoreTabs();
-    renderStorePicker();
+    render();
     try {
       const ref = await storesCol.add({ name, order });
       const idx = stores.findIndex(s => s.id === tempId);
       if (idx !== -1) stores[idx].id = ref.id;
       cacheLocally();
       renderStoreTabs();
-      renderStorePicker();
     } catch {}
   }
 
@@ -595,9 +528,7 @@
     const affected = items.filter(i => i.storeId === id);
     affected.forEach(i => { i.storeId = null; });
     if (selectedStore === id) selectedStore = stores[0]?.id || 'all';
-    if (addStoreId   === id) addStoreId   = stores[0]?.id || null;
     renderStoreTabs();
-    renderStorePicker();
     render();
     try {
       const batch = db.batch();
@@ -643,6 +574,34 @@
     if (!id.startsWith('tmp_')) {
       try { await col.doc(id).update({ storeId: item.storeId }); } catch {}
     }
+  }
+
+  /* ── Inline add row ── */
+  function activateAddRow(li, ph) {
+    if (li.querySelector('.add-row-input')) return; // already active
+    const inp = document.createElement('input');
+    inp.type = 'text'; inp.className = 'add-row-input';
+    inp.placeholder = 'הוסף פריט…';
+    inp.addEventListener('keydown', e => {
+      if (e.key === 'Enter') {
+        if (inp.value.trim()) {
+          addItem(inp.value); // addItem calls render() which recreates the list
+          // re-activate new add-row so keyboard stays open
+          const newPh = listEl.querySelector('.add-row-placeholder');
+          if (newPh) activateAddRow(newPh.closest('li'), newPh);
+        }
+      } else if (e.key === 'Escape') {
+        inp.replaceWith(ph);
+      }
+    });
+    inp.addEventListener('blur', () => {
+      if (inp.parentElement) { // still in DOM (not cleared by render())
+        if (inp.value.trim()) addItem(inp.value);
+        else inp.replaceWith(ph);
+      }
+    });
+    ph.replaceWith(inp);
+    inp.focus();
   }
 
   /* ── Inline item-text editing (tap to edit) ── */
@@ -693,13 +652,27 @@
     clearDoneBtn.classList.toggle('visible', filtered.some(i => i.done));
     listEl.innerHTML = '';
 
-    if (filtered.length === 0) {
+    const showAddRow = filter === 'active';
+
+    if (filtered.length === 0 && !showAddRow) {
       emptyEl.style.display = 'flex';
       listEl.style.display  = 'none';
       return;
     }
     emptyEl.style.display = 'none';
     listEl.style.display  = 'flex';
+
+    if (showAddRow) {
+      const addLi = document.createElement('li');
+      addLi.className = 'add-row';
+      const icon = document.createElement('span');
+      icon.className = 'add-row-icon'; icon.textContent = '＋';
+      const ph = document.createElement('span');
+      ph.className = 'add-row-placeholder'; ph.textContent = 'הוסף פריט…';
+      addLi.addEventListener('click', () => activateAddRow(addLi, ph));
+      addLi.append(icon, ph);
+      listEl.appendChild(addLi);
+    }
 
     filtered.forEach(item => {
       const li = document.createElement('li');
@@ -750,7 +723,7 @@
   async function addItem(text) {
     text = text.trim();
     if (!text) return;
-    const storeId = addStoreId;
+    const storeId = selectedStore === 'all' ? null : selectedStore;
     const order   = Date.now();
     const tempId  = 'tmp_' + order;
     items.unshift({ id: tempId, text, done: false, storeId, order });
@@ -777,7 +750,7 @@
     const filtered = getFiltered();
     const idx = filtered.findIndex(i => i.id === id);
     if (idx === -1) return;
-    const li = listEl.querySelectorAll('li')[idx];
+    const li = listEl.querySelectorAll('li:not(.add-row)')[idx];
     const doRemove = () => {
       items = items.filter(i => i.id !== id);
       cacheLocally();
@@ -810,15 +783,6 @@
     refreshBtn.classList.add('spinning');
     refreshBtn.addEventListener('animationend', () => refreshBtn.classList.remove('spinning'), { once: true });
     init();
-  });
-
-  /* ── Add item events ── */
-  document.getElementById('add-btn').addEventListener('click', () => {
-    const inp = document.getElementById('item-input');
-    addItem(inp.value); inp.value = ''; inp.focus();
-  });
-  document.getElementById('item-input').addEventListener('keydown', e => {
-    if (e.key === 'Enter') { addItem(e.target.value); e.target.value = ''; }
   });
 
   /* ── Filter events ── */
