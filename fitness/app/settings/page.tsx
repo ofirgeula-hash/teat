@@ -322,7 +322,7 @@ function WorkoutTypeAccordion({ wt, exercises, onSave }: {
       >
         <div className="flex items-center gap-2 text-gray-500">
           {open ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-          <span className="text-xs">{localExs.length} תרגילים</span>
+          <span className="text-xs">{open ? localExs.length : exercises.length} תרגילים</span>
         </div>
         <div className="flex items-center gap-2">
           <span className="text-sm font-medium text-gray-200">{wt.name}</span>
@@ -362,11 +362,11 @@ function WorkoutTypeAccordion({ wt, exercises, onSave }: {
 
               {/* Sets */}
               <div className="space-y-1">
-                <div className="grid grid-cols-4 gap-1 text-xs text-gray-500 text-center">
-                  <div>סט</div><div>ק״ג</div><div>חז'</div><div>מנוחה</div>
+                <div className="grid grid-cols-5 gap-1 text-xs text-gray-500 text-center">
+                  <div>סט</div><div>ק״ג</div><div>חז'</div><div>מנוחה</div><div></div>
                 </div>
                 {ex.sets.map((s, setIdx) => (
-                  <div key={setIdx} className="grid grid-cols-4 gap-1 items-center">
+                  <div key={setIdx} className="grid grid-cols-5 gap-1 items-center">
                     <div className="text-xs text-gray-500 text-center">{setIdx + 1}</div>
                     {(['weight', 'reps', 'restSeconds'] as const).map((field) => (
                       <input
@@ -377,9 +377,13 @@ function WorkoutTypeAccordion({ wt, exercises, onSave }: {
                         className="bg-gray-700 rounded px-1 py-1 text-white text-center text-xs border border-gray-600 focus:border-blue-500 focus:outline-none"
                       />
                     ))}
-                    <button onClick={() => removeSet(exIdx, setIdx)} className="text-red-400 flex justify-center col-span-1" style={{ display: ex.sets.length > 1 ? undefined : 'none' }}>
-                      <X size={12} />
-                    </button>
+                    {ex.sets.length > 1 ? (
+                      <button onClick={() => removeSet(exIdx, setIdx)} className="text-red-400 flex justify-center">
+                        <X size={12} />
+                      </button>
+                    ) : (
+                      <div />
+                    )}
                   </div>
                 ))}
                 <button onClick={() => addSet(exIdx)} className="text-blue-400 text-xs flex items-center gap-1 mt-1">
