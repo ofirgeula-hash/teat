@@ -12,7 +12,6 @@ import {
   Bar,
   CartesianGrid,
 } from 'recharts';
-import type { SplitName } from '@/types';
 
 type Tab = 'נפח' | 'משקל_גוף' | 'שבועי' | 'עקביות';
 
@@ -48,34 +47,44 @@ export default function AnalyticsPage() {
 }
 
 function VolumeChart() {
-  const { sessions, exercises, templates } = useStore();
-  const [selectedEx, setSelectedEx] = useState<string>('');
+  const { sessions } = useStore();
+  const [selectedEx, setSelectedEx] = useState('');
 
-  const uniqueExIds = [...new Set(sessions.flatMap((s) => s.sets.map((st) => st.exerciseId)))];
-  const exOptions = uniqueExIds.map((id) => exercises.find((e) => e.id === id)).filter(Boolean);
+  const uniqueExNames = [
+    ...new Set(
+      sessions
+        .filter((s) => s.endedAt)
+        .flatMap((s) => s.sets.map((st) => st.exerciseName))
+    ),
+  ].filter(Boolean);
 
-  const currentExId = selectedEx || uniqueExIds[0] || '';
+  const currentEx = selectedEx || uniqueExNames[0] || '';
+
   const data = sessions
-    .filter((s) => s.endedAt && s.sets.some((st) => st.exerciseId === currentExId))
+    .filter((s) => s.endedAt && s.sets.some((st) => st.exerciseName === currentEx))
     .map((s) => ({
       date: new Date(s.startedAt).toLocaleDateString('he-IL', { day: 'numeric', month: 'numeric' }),
-      נפח: s.sets.filter((st) => st.exerciseId === currentExId).reduce((sum, st) => sum + st.weight * st.reps, 0),
+      נפח: s.sets
+        .filter((st) => st.exerciseName === currentEx)
+        .reduce((sum, st) => sum + st.weight * st.reps, 0),
     }))
     .slice(-20);
 
-  if (!exOptions.length) {
+  if (!uniqueExNames.length) {
     return <EmptyState message="אין נתונים עדיין. השלם כמה אימונים!" />;
   }
 
   return (
     <div className="space-y-4">
       <select
-        value={currentExId}
+        value={currentEx}
         onChange={(e) => setSelectedEx(e.target.value)}
         className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm"
       >
-        {exOptions.map((ex) => ex && (
-          <option key={ex.id} value={ex.id}>{ex.name}</option>
+        {uniqueExNames.map((name) => (
+          <option key={name} value={name}>
+            {name}
+          </option>
         ))}
       </select>
       <div className="bg-gray-900 rounded-xl p-4">
@@ -150,7 +159,9 @@ function BodyWeightChart() {
       )}
       {bodyWeightLogs.slice(0, 5).map((l) => (
         <div key={l.id} className="flex items-center justify-between bg-gray-900 rounded-lg px-4 py-3 text-sm">
-          <button onClick={() => deleteBodyWeight(l.id)} className="text-red-400 text-xs">מחק</button>
+          <button onClick={() => deleteBodyWeight(l.id)} className="text-red-400 text-xs">
+            מחק
+          </button>
           <div>
             <span className="font-mono text-white">{l.weightKg} ק״ג</span>
             <span className="text-gray-400 mr-3">{new Date(l.date).toLocaleDateString('he-IL')}</span>
@@ -162,7 +173,7 @@ function BodyWeightChart() {
 }
 
 function WeeklyVolumeChart() {
-  const { sessions, templates } = useStore();
+  const { sessions, workoutTypes } = useStore();
 
   const weeks: Record<string, Record<string, number>> = {};
   sessions.filter((s) => s.endedAt).forEach((s) => {
@@ -170,11 +181,11 @@ function WeeklyVolumeChart() {
     const weekStart = new Date(d);
     weekStart.setDate(d.getDate() - d.getDay());
     const key = weekStart.toISOString().slice(0, 10);
-    const tpl = templates.find((t) => t.id === s.templateId);
-    const split = tpl?.splitName ?? 'אחר';
+    const wt = workoutTypes.find((w) => w.id === s.workoutTypeId);
+    const wtName = wt?.name ?? 'אחר';
     if (!weeks[key]) weeks[key] = {};
     const vol = s.sets.reduce((sum, st) => sum + st.weight * st.reps, 0);
-    weeks[key][split] = (weeks[key][split] ?? 0) + vol;
+    weeks[key][wtName] = (weeks[key][wtName] ?? 0) + vol;
   });
 
   const data = Object.entries(weeks)
@@ -185,18 +196,11 @@ function WeeklyVolumeChart() {
       ...splits,
     }));
 
-  const splitColors: Record<SplitName, string> = {
-    חזה_טריצפס: '#3b82f6',
-    גב_ביצפס: '#10b981',
-    כתפיים: '#f59e0b',
-    רגליים: '#ef4444',
-  };
-
   if (!data.length) return <EmptyState message="אין נתונים עדיין" />;
 
   return (
     <div className="bg-gray-900 rounded-xl p-4">
-      <div className="text-sm text-gray-400 mb-3">נפח שבועי לפי split</div>
+      <div className="text-sm text-gray-400 mb-3">נפח שבועי לפי סוג אימון</div>
       <ResponsiveContainer width="100%" height={220}>
         <BarChart data={data}>
           <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" />
@@ -205,8 +209,8 @@ function WeeklyVolumeChart() {
           <Tooltip
             contentStyle={{ background: '#111827', border: '1px solid #374151', borderRadius: 8, color: '#f9fafb' }}
           />
-          {(Object.keys(splitColors) as SplitName[]).map((split) => (
-            <Bar key={split} dataKey={split} stackId="a" fill={splitColors[split]} />
+          {workoutTypes.map((wt) => (
+            <Bar key={wt.id} dataKey={wt.name} stackId="a" fill={wt.color} />
           ))}
         </BarChart>
       </ResponsiveContainer>
@@ -221,7 +225,6 @@ function ConsistencyChart() {
     sessions.filter((s) => s.endedAt).map((s) => s.startedAt.slice(0, 10))
   );
 
-  // Last 10 weeks
   const weeks = Array.from({ length: 10 }, (_, i) => {
     const start = new Date();
     start.setDate(start.getDate() - (9 - i) * 7 - start.getDay());
@@ -245,8 +248,10 @@ function ConsistencyChart() {
       <div className="bg-gray-900 rounded-xl p-4">
         <div className="text-sm text-gray-400 mb-3">לוח שנה (10 שבועות אחרונים)</div>
         <div className="flex gap-1 mb-1">
-          {['א', 'ב', 'ג', 'ד', 'ה', 'ו', 'ש'].map((d) => (
-            <div key={d} className="flex-1 text-center text-xs text-gray-600">{d}</div>
+          {['א', 'ב', 'ג', 'ד', 'ה', 'ו', 'ש'].map((day) => (
+            <div key={day} className="flex-1 text-center text-xs text-gray-600">
+              {day}
+            </div>
           ))}
         </div>
         <div className="space-y-1">
