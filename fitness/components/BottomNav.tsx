@@ -1,11 +1,10 @@
 'use client';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Dumbbell, History, BarChart2, Settings } from 'lucide-react';
+import { Dumbbell, BarChart2, Settings } from 'lucide-react';
 
 const items = [
   { href: '/', label: 'בית', icon: Dumbbell },
-  { href: '/history', label: 'היסטוריה', icon: History },
   { href: '/analytics', label: 'גרפים', icon: BarChart2 },
   { href: '/settings', label: 'הגדרות', icon: Settings },
 ];

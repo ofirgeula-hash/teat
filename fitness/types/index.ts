@@ -1,66 +1,48 @@
-export type MuscleGroup = 'חזה' | 'גב' | 'כתפיים' | 'יד_קדמית' | 'יד_אחורית' | 'רגליים' | 'בטן' | 'אחר';
-
-export type Equipment =
-  | 'מוט_ישר'
-  | 'משקולות_יד'
-  | 'כבלים'
-  | 'לג_פרס'
-  | 'מכונה'
-  | 'מקבילים'
-  | 'מתח'
-  | 'משקל_גוף'
-  | 'סמית'
-  | 'EZ';
-
-export interface Exercise {
+export interface WorkoutType {
   id: string;
   name: string;
-  muscleGroup: MuscleGroup;
-  requiredEquipment: Equipment[];
-  alternativeIds: string[];
-  notes: string[];
-}
-
-export interface TemplateSet {
-  reps: number;
-  weight: number;
-  restSeconds: number;
-}
-
-export interface TemplateExercise {
-  exerciseId: string;
-  sets: TemplateSet[];
-}
-
-export type SplitName = 'חזה_טריצפס' | 'גב_ביצפס' | 'כתפיים' | 'רגליים';
-
-export interface WorkoutTemplate {
-  id: string;
-  name: string;
-  splitName: SplitName;
-  exercises: TemplateExercise[];
+  emoji: string;
+  color: string;
 }
 
 export interface Location {
   id: string;
   name: string;
-  availableEquipment: Equipment[];
+}
+
+export interface PlanSet {
+  reps: number;
+  weight: number;
+  restSeconds: number;
+}
+
+export interface PlanExercise {
+  id: string;
+  name: string;
+  notes: string;
+  sets: PlanSet[];
+}
+
+export interface LocationWorkoutPlan {
+  locationId: string;
+  workoutTypeId: string;
+  exercises: PlanExercise[];
 }
 
 export interface SessionSet {
   id: string;
   exerciseId: string;
+  exerciseName: string;
   setNumber: number;
   weight: number;
   reps: number;
   rpe: number | null;
-  notes: string;
   completedAt: string;
 }
 
 export interface WorkoutSession {
   id: string;
-  templateId: string;
+  workoutTypeId: string;
   locationId: string;
   startedAt: string;
   endedAt: string | null;
@@ -76,16 +58,4 @@ export interface BodyWeightLog {
 
 export interface AppSettings {
   defaultRestSeconds: number;
-  reminderEnabled: boolean;
-  reminderDays: number[];
-  reminderTime: string;
-}
-
-export interface ExerciseLastValues {
-  [exerciseId: string]: {
-    weight: number;
-    reps: number;
-    sets: number;
-    restSeconds: number;
-  };
 }
