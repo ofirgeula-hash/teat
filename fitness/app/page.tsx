@@ -18,15 +18,15 @@ export default function HomePage() {
   return (
     <div className="p-4 space-y-6">
       <div className="pt-4 flex items-start justify-between">
-        <div className="bg-gray-900 rounded-xl px-4 py-2 text-center min-w-[60px]">
-          <div className="text-blue-400 font-bold text-xl">{count}</div>
-          <div className="text-gray-500 text-xs">השבוע</div>
-        </div>
-        <div className="text-right">
+        <div>
           <h1 className="text-2xl font-bold text-white">אימון</h1>
           <p className="text-gray-400 text-sm mt-1">
             {new Date().toLocaleDateString('he-IL', { weekday: 'long', day: 'numeric', month: 'long' })}
           </p>
+        </div>
+        <div className="bg-gray-900 rounded-xl px-4 py-2 text-center min-w-[60px]">
+          <div className="text-blue-400 font-bold text-xl">{count}</div>
+          <div className="text-gray-500 text-xs">השבוע</div>
         </div>
       </div>
 

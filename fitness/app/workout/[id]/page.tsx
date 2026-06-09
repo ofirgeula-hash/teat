@@ -101,6 +101,9 @@ export default function WorkoutPage() {
         className="p-4 flex items-center justify-between"
         style={{ borderBottom: `2px solid ${workoutType.color}` }}
       >
+        <div className="font-bold text-white">
+          {workoutType.emoji} {workoutType.name}
+        </div>
         <div className="flex gap-2">
           {locations.map((loc) => (
             <button
@@ -115,9 +118,6 @@ export default function WorkoutPage() {
               {loc.name}
             </button>
           ))}
-        </div>
-        <div className="text-right">
-          <div className="font-bold text-white">{workoutType.emoji} {workoutType.name}</div>
         </div>
       </div>
 
