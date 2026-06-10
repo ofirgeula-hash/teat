@@ -1,3 +1,11 @@
+export type EquipmentType = 'machine' | 'dumbbells' | 'plates';
+
+export const EQUIPMENT_LABELS: Record<EquipmentType, string> = {
+  machine: 'מכונה',
+  dumbbells: 'דאמבל',
+  plates: 'פלטות',
+};
+
 export interface WorkoutType {
   id: string;
   name: string;
@@ -16,11 +24,18 @@ export interface PlanSet {
   restSeconds: number;
 }
 
+export interface ExerciseVariantData {
+  notes: string[];
+  sets: PlanSet[];
+}
+
 export interface PlanExercise {
   id: string;
   name: string;
   notes: string[];
   sets: PlanSet[];
+  equipment: EquipmentType[];
+  variants?: Partial<Record<EquipmentType, ExerciseVariantData>>;
 }
 
 export interface LocationWorkoutPlan {
@@ -38,6 +53,7 @@ export interface SessionSet {
   reps: number;
   rpe: number | null;
   completedAt: string;
+  equipment?: EquipmentType;
 }
 
 export interface WorkoutSession {
@@ -58,4 +74,11 @@ export interface BodyWeightLog {
 
 export interface AppSettings {
   defaultRestSeconds: number;
+}
+
+export interface WorkoutNote {
+  id: string;
+  title: string;
+  content: string;
+  createdAt: string;
 }

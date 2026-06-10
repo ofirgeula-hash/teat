@@ -1,10 +1,13 @@
 'use client';
 import { useStore } from '@/store';
 import { useState } from 'react';
-import type { Location, WorkoutType, PlanExercise, PlanSet } from '@/types';
+import type { Location, WorkoutType, PlanExercise, PlanSet, EquipmentType } from '@/types';
+import { EQUIPMENT_LABELS } from '@/types';
 import { Plus, Trash2, ChevronDown, ChevronUp, Edit2, Check, X } from 'lucide-react';
 
 type Tab = 'תוכנית' | 'כללי';
+
+const ALL_EQUIPMENT: EquipmentType[] = ['machine', 'dumbbells', 'plates'];
 
 export default function SettingsPage() {
   const [tab, setTab] = useState<Tab>('תוכנית');
@@ -247,8 +250,8 @@ function WorkoutTypeAccordion({ wt, exercises, onSave }: {
 }) {
   const [open, setOpen] = useState(false);
   const [localExs, setLocalExs] = useState<PlanExercise[]>(exercises);
+  const [activeVariantTab, setActiveVariantTab] = useState<Record<number, EquipmentType>>({});
 
-  // Sync from store when closed and then reopened
   function toggle() {
     if (!open) setLocalExs(exercises);
     setOpen((v) => !v);
@@ -262,32 +265,148 @@ function WorkoutTypeAccordion({ wt, exercises, onSave }: {
     setLocalExs((list) => list.map((e, i) => (i === idx ? { ...e, ...updates } : e)));
   }
 
+  function toggleEquipment(exIdx: number, eq: EquipmentType) {
+    const ex = localExs[exIdx];
+    const current = ex.equipment ?? [];
+    let next: EquipmentType[];
+
+    if (current.includes(eq)) {
+      next = current.filter((e) => e !== eq);
+    } else {
+      if (current.length >= 2) return; // max 2
+      next = [...current, eq];
+    }
+
+    // When adding 2nd equipment, move existing sets/notes into variants
+    let variants = { ...(ex.variants ?? {}) };
+    if (next.length === 2) {
+      if (!variants[next[0]]) {
+        variants[next[0]] = { notes: [...(ex.notes ?? [])], sets: [...(ex.sets ?? [])] };
+      }
+      if (!variants[next[1]]) {
+        variants[next[1]] = { notes: [], sets: [...(ex.sets ?? [])] };
+      }
+    }
+
+    // When going back to 1 or 0, move variant data back to top-level
+    const sets = next.length <= 1 ? (variants[next[0]]?.sets ?? ex.sets ?? []) : ex.sets;
+    const notes = next.length <= 1 ? (variants[next[0]]?.notes ?? ex.notes ?? []) : ex.notes;
+
+    updateExercise(exIdx, {
+      equipment: next,
+      sets,
+      notes,
+      variants: next.length >= 2 ? variants : undefined,
+    });
+
+    // Set default tab for new 2nd equipment
+    if (next.length === 2) {
+      setActiveVariantTab((prev) => ({ ...prev, [exIdx]: next[0] }));
+    }
+  }
+
+  function getActiveTab(exIdx: number, ex: PlanExercise): EquipmentType {
+    return activeVariantTab[exIdx] ?? ex.equipment?.[0] ?? 'machine';
+  }
+
   function updateSet(exIdx: number, setIdx: number, field: keyof PlanSet, val: string) {
-    setLocalExs((list) =>
-      list.map((e, i) =>
-        i === exIdx
-          ? { ...e, sets: e.sets.map((s, j) => (j === setIdx ? { ...s, [field]: parseFloat(val) || 0 } : s)) }
-          : e
-      )
-    );
+    const ex = localExs[exIdx];
+    if ((ex.equipment?.length ?? 0) >= 2) {
+      const tab = getActiveTab(exIdx, ex);
+      const variantSets = ex.variants?.[tab]?.sets ?? [];
+      const newSets = variantSets.map((s, j) =>
+        j === setIdx ? { ...s, [field]: parseFloat(val) || 0 } : s
+      );
+      updateExercise(exIdx, {
+        variants: { ...ex.variants, [tab]: { ...ex.variants?.[tab], notes: ex.variants?.[tab]?.notes ?? [], sets: newSets } },
+      });
+    } else {
+      setLocalExs((list) =>
+        list.map((e, i) =>
+          i === exIdx
+            ? { ...e, sets: e.sets.map((s, j) => (j === setIdx ? { ...s, [field]: parseFloat(val) || 0 } : s)) }
+            : e
+        )
+      );
+    }
   }
 
   function addSet(exIdx: number) {
-    setLocalExs((list) =>
-      list.map((e, i) => {
-        if (i !== exIdx) return e;
-        const last = e.sets[e.sets.length - 1] ?? { reps: 10, weight: 0, restSeconds: 90 };
-        return { ...e, sets: [...e.sets, { ...last }] };
-      })
-    );
+    const ex = localExs[exIdx];
+    if ((ex.equipment?.length ?? 0) >= 2) {
+      const tab = getActiveTab(exIdx, ex);
+      const variantSets = ex.variants?.[tab]?.sets ?? [];
+      const last = variantSets[variantSets.length - 1] ?? { reps: 10, weight: 0, restSeconds: 90 };
+      updateExercise(exIdx, {
+        variants: { ...ex.variants, [tab]: { ...ex.variants?.[tab], notes: ex.variants?.[tab]?.notes ?? [], sets: [...variantSets, { ...last }] } },
+      });
+    } else {
+      setLocalExs((list) =>
+        list.map((e, i) => {
+          if (i !== exIdx) return e;
+          const last = e.sets[e.sets.length - 1] ?? { reps: 10, weight: 0, restSeconds: 90 };
+          return { ...e, sets: [...e.sets, { ...last }] };
+        })
+      );
+    }
   }
 
   function removeSet(exIdx: number, setIdx: number) {
-    setLocalExs((list) =>
-      list.map((e, i) =>
-        i === exIdx ? { ...e, sets: e.sets.filter((_, j) => j !== setIdx) } : e
-      )
-    );
+    const ex = localExs[exIdx];
+    if ((ex.equipment?.length ?? 0) >= 2) {
+      const tab = getActiveTab(exIdx, ex);
+      const variantSets = (ex.variants?.[tab]?.sets ?? []).filter((_, j) => j !== setIdx);
+      updateExercise(exIdx, {
+        variants: { ...ex.variants, [tab]: { ...ex.variants?.[tab], notes: ex.variants?.[tab]?.notes ?? [], sets: variantSets } },
+      });
+    } else {
+      setLocalExs((list) =>
+        list.map((e, i) =>
+          i === exIdx ? { ...e, sets: e.sets.filter((_, j) => j !== setIdx) } : e
+        )
+      );
+    }
+  }
+
+  function updateNote(exIdx: number, noteIdx: number, val: string) {
+    const ex = localExs[exIdx];
+    if ((ex.equipment?.length ?? 0) >= 2) {
+      const tab = getActiveTab(exIdx, ex);
+      const variantNotes = [...(ex.variants?.[tab]?.notes ?? [])];
+      variantNotes[noteIdx] = val;
+      updateExercise(exIdx, {
+        variants: { ...ex.variants, [tab]: { sets: ex.variants?.[tab]?.sets ?? [], notes: variantNotes } },
+      });
+    } else {
+      const notes = [...ex.notes];
+      notes[noteIdx] = val;
+      updateExercise(exIdx, { notes });
+    }
+  }
+
+  function addNote(exIdx: number) {
+    const ex = localExs[exIdx];
+    if ((ex.equipment?.length ?? 0) >= 2) {
+      const tab = getActiveTab(exIdx, ex);
+      updateExercise(exIdx, {
+        variants: { ...ex.variants, [tab]: { sets: ex.variants?.[tab]?.sets ?? [], notes: [...(ex.variants?.[tab]?.notes ?? []), ''] } },
+      });
+    } else {
+      updateExercise(exIdx, { notes: [...ex.notes, ''] });
+    }
+  }
+
+  function removeNote(exIdx: number, noteIdx: number) {
+    const ex = localExs[exIdx];
+    if ((ex.equipment?.length ?? 0) >= 2) {
+      const tab = getActiveTab(exIdx, ex);
+      const notes = (ex.variants?.[tab]?.notes ?? []).filter((_, i) => i !== noteIdx);
+      updateExercise(exIdx, {
+        variants: { ...ex.variants, [tab]: { sets: ex.variants?.[tab]?.sets ?? [], notes } },
+      });
+    } else {
+      updateExercise(exIdx, { notes: ex.notes.filter((_, i) => i !== noteIdx) });
+    }
   }
 
   function addExercise() {
@@ -298,6 +417,7 @@ function WorkoutTypeAccordion({ wt, exercises, onSave }: {
         name: '',
         notes: [],
         sets: [{ reps: 10, weight: 0, restSeconds: 90 }],
+        equipment: [],
       },
     ]);
   }
@@ -332,87 +452,132 @@ function WorkoutTypeAccordion({ wt, exercises, onSave }: {
 
       {open && (
         <div className="px-4 pb-4 space-y-3">
-          {localExs.map((ex, exIdx) => (
-            <div key={ex.id} className="bg-gray-800 rounded-xl p-3 space-y-2">
-              {/* Exercise header */}
-              <div className="flex items-center gap-2">
-                <div className="flex flex-col gap-1">
-                  <button onClick={() => moveExercise(exIdx, -1)} disabled={exIdx === 0} className="text-gray-500 disabled:opacity-30 text-xs leading-none">▲</button>
-                  <button onClick={() => moveExercise(exIdx, 1)} disabled={exIdx === localExs.length - 1} className="text-gray-500 disabled:opacity-30 text-xs leading-none">▼</button>
-                </div>
-                <input
-                  value={ex.name}
-                  onChange={(e) => updateExercise(exIdx, { name: e.target.value })}
-                  placeholder="שם תרגיל"
-                  className="flex-1 bg-gray-700 rounded px-2 py-1.5 text-white text-sm border border-gray-600 focus:border-blue-500 focus:outline-none text-right"
-                />
-                <button onClick={() => removeExercise(exIdx)} className="text-red-400 shrink-0">
-                  <Trash2 size={16} />
-                </button>
-              </div>
+          {localExs.map((ex, exIdx) => {
+            const hasDual = (ex.equipment?.length ?? 0) >= 2;
+            const activeTab = getActiveTab(exIdx, ex);
+            const currentNotes = hasDual ? (ex.variants?.[activeTab]?.notes ?? []) : ex.notes;
+            const currentSets = hasDual ? (ex.variants?.[activeTab]?.sets ?? []) : ex.sets;
 
-              {/* Notes */}
-              <div className="space-y-1">
-                {ex.notes.map((note, ni) => (
-                  <div key={ni} className="flex items-center gap-1">
-                    <input
-                      value={note}
-                      onChange={(e) => {
-                        const notes = [...ex.notes];
-                        notes[ni] = e.target.value;
-                        updateExercise(exIdx, { notes });
-                      }}
-                      placeholder="הערה..."
-                      className="flex-1 bg-gray-700 rounded px-2 py-1 text-gray-300 text-xs border border-gray-600 focus:border-blue-500 focus:outline-none"
-                    />
-                    <button
-                      onClick={() => updateExercise(exIdx, { notes: ex.notes.filter((_, i) => i !== ni) })}
-                      className="text-gray-600 active:text-red-400 shrink-0"
-                    >
-                      <X size={12} />
-                    </button>
+            return (
+              <div key={ex.id} className="bg-gray-800 rounded-xl p-3 space-y-2">
+                {/* Exercise header */}
+                <div className="flex items-center gap-2">
+                  <div className="flex flex-col gap-1">
+                    <button onClick={() => moveExercise(exIdx, -1)} disabled={exIdx === 0} className="text-gray-500 disabled:opacity-30 text-xs leading-none">▲</button>
+                    <button onClick={() => moveExercise(exIdx, 1)} disabled={exIdx === localExs.length - 1} className="text-gray-500 disabled:opacity-30 text-xs leading-none">▼</button>
                   </div>
-                ))}
-                <button
-                  onClick={() => updateExercise(exIdx, { notes: [...ex.notes, ''] })}
-                  className="flex items-center gap-1 text-gray-600 text-xs"
-                >
-                  <Plus size={10} /> הוסף הערה
-                </button>
-              </div>
-
-              {/* Sets */}
-              <div className="space-y-1">
-                <div className="grid grid-cols-5 gap-1 text-xs text-gray-500 text-center">
-                  <div>סט</div><div>ק״ג</div><div>חז'</div><div>מנוחה</div><div></div>
+                  <input
+                    value={ex.name}
+                    onChange={(e) => updateExercise(exIdx, { name: e.target.value })}
+                    placeholder="שם תרגיל"
+                    className="flex-1 bg-gray-700 rounded px-2 py-1.5 text-white text-sm border border-gray-600 focus:border-blue-500 focus:outline-none text-right"
+                  />
+                  <button onClick={() => removeExercise(exIdx)} className="text-red-400 shrink-0">
+                    <Trash2 size={16} />
+                  </button>
                 </div>
-                {ex.sets.map((s, setIdx) => (
-                  <div key={setIdx} className="grid grid-cols-5 gap-1 items-center">
-                    <div className="text-xs text-gray-500 text-center">{setIdx + 1}</div>
-                    {(['weight', 'reps', 'restSeconds'] as const).map((field) => (
-                      <input
-                        key={field}
-                        type="number"
-                        value={s[field]}
-                        onChange={(e) => updateSet(exIdx, setIdx, field, e.target.value)}
-                        className="bg-gray-700 rounded px-1 py-1 text-white text-center text-xs border border-gray-600 focus:border-blue-500 focus:outline-none"
-                      />
+
+                {/* Equipment toggles */}
+                <div className="flex gap-1.5 justify-end">
+                  {ALL_EQUIPMENT.map((eq) => {
+                    const selected = ex.equipment?.includes(eq) ?? false;
+                    const disabled = !selected && (ex.equipment?.length ?? 0) >= 2;
+                    return (
+                      <button
+                        key={eq}
+                        onClick={() => !disabled && toggleEquipment(exIdx, eq)}
+                        className={`px-2 py-1 rounded-full text-xs font-medium transition-colors ${
+                          selected
+                            ? 'bg-blue-600 text-white'
+                            : disabled
+                            ? 'bg-gray-700 text-gray-600'
+                            : 'bg-gray-700 text-gray-400 active:bg-gray-600'
+                        }`}
+                      >
+                        {EQUIPMENT_LABELS[eq]}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Variant tabs — only when 2 equipment selected */}
+                {hasDual && (
+                  <div className="flex gap-1.5 justify-end">
+                    {ex.equipment.map((eq) => (
+                      <button
+                        key={eq}
+                        onClick={() => setActiveVariantTab((prev) => ({ ...prev, [exIdx]: eq }))}
+                        className={`px-3 py-1 rounded-lg text-xs font-medium transition-colors ${
+                          activeTab === eq
+                            ? 'bg-gray-600 text-white'
+                            : 'bg-gray-700 text-gray-400'
+                        }`}
+                      >
+                        {EQUIPMENT_LABELS[eq]}
+                      </button>
                     ))}
-                    {ex.sets.length > 1 ? (
-                      <button onClick={() => removeSet(exIdx, setIdx)} className="text-red-400 flex justify-center">
+                  </div>
+                )}
+
+                {/* Notes */}
+                <div className="space-y-1">
+                  {currentNotes.map((note, ni) => (
+                    <div key={ni} className="flex items-center gap-1">
+                      <input
+                        value={note}
+                        onChange={(e) => updateNote(exIdx, ni, e.target.value)}
+                        placeholder="הערה..."
+                        className="flex-1 bg-gray-700 rounded px-2 py-1 text-gray-300 text-xs border border-gray-600 focus:border-blue-500 focus:outline-none"
+                      />
+                      <button
+                        onClick={() => removeNote(exIdx, ni)}
+                        className="text-gray-600 active:text-red-400 shrink-0"
+                      >
                         <X size={12} />
                       </button>
-                    ) : (
-                      <div />
-                    )}
+                    </div>
+                  ))}
+                  <button
+                    onClick={() => addNote(exIdx)}
+                    className="flex items-center gap-1 text-gray-600 text-xs"
+                  >
+                    <Plus size={10} /> הוסף הערה
+                  </button>
+                </div>
+
+                {/* Sets */}
+                <div className="space-y-1">
+                  <div className="grid grid-cols-5 gap-1 text-xs text-gray-500 text-center">
+                    <div>סט</div><div>ק״ג</div><div>חז'</div><div>מנוחה</div><div></div>
                   </div>
-                ))}
-                <button onClick={() => addSet(exIdx)} className="text-blue-400 text-xs flex items-center gap-1 mt-1">
-                  <Plus size={12} /> הוסף סט
-                </button>
+                  {currentSets.map((s, setIdx) => (
+                    <div key={setIdx} className="grid grid-cols-5 gap-1 items-center">
+                      <div className="text-xs text-gray-500 text-center">{setIdx + 1}</div>
+                      {(['weight', 'reps', 'restSeconds'] as const).map((field) => (
+                        <input
+                          key={field}
+                          type="number"
+                          value={s[field]}
+                          onChange={(e) => updateSet(exIdx, setIdx, field, e.target.value)}
+                          className="bg-gray-700 rounded px-1 py-1 text-white text-center text-xs border border-gray-600 focus:border-blue-500 focus:outline-none"
+                        />
+                      ))}
+                      {currentSets.length > 1 ? (
+                        <button onClick={() => removeSet(exIdx, setIdx)} className="text-red-400 flex justify-center">
+                          <X size={12} />
+                        </button>
+                      ) : (
+                        <div />
+                      )}
+                    </div>
+                  ))}
+                  <button onClick={() => addSet(exIdx)} className="text-blue-400 text-xs flex items-center gap-1 mt-1">
+                    <Plus size={12} /> הוסף סט
+                  </button>
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
 
           <button
             onClick={addExercise}
