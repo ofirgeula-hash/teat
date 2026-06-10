@@ -228,7 +228,27 @@ export const useStore = create<AppState>()(
 
       updateSettings: (updates) => set((s) => ({ settings: { ...s.settings, ...updates } })),
     }),
-    { name: 'fitness-store-v2' }
+    {
+      name: 'fitness-store-v2',
+      version: 1,
+      migrate: (persistedState: unknown, version: number) => {
+        const state = persistedState as AppState;
+        if (version < 1) {
+          state.locationPlans = (state.locationPlans ?? []).map((plan) => ({
+            ...plan,
+            exercises: (plan.exercises ?? []).map((ex) => ({
+              ...ex,
+              notes: Array.isArray(ex.notes)
+                ? ex.notes
+                : ex.notes
+                ? [ex.notes as unknown as string]
+                : [],
+            })),
+          }));
+        }
+        return state;
+      },
+    }
   )
 );
 

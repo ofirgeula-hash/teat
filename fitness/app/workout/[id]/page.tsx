@@ -43,7 +43,19 @@ export default function WorkoutPage() {
     }
   }, [id]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  if (!workoutType) return <div className="p-4 text-gray-400">אימון לא נמצא</div>;
+  if (!workoutType) {
+    return (
+      <div className="min-h-screen bg-gray-950 flex flex-col items-center justify-center gap-4 p-4">
+        <div className="text-gray-400 text-center">אימון לא נמצא</div>
+        <button
+          onClick={() => { store.cancelSession(); router.push('/'); }}
+          className="bg-gray-800 text-white px-6 py-3 rounded-xl text-sm font-medium"
+        >
+          חזרה לדף הבית
+        </button>
+      </div>
+    );
+  }
 
   const currentPlan = locationPlans.find(
     (p) => p.locationId === selectedLocationId && p.workoutTypeId === id
