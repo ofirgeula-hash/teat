@@ -19,7 +19,7 @@ export default function HomePage() {
     <div className="p-4 space-y-6">
       <div className="pt-4 flex items-start justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-white">אימון</h1>
+          <h1 className="text-2xl font-bold text-white">ראשי</h1>
           <p className="text-gray-400 text-sm mt-1">
             {new Date().toLocaleDateString('he-IL', { weekday: 'long', day: 'numeric', month: 'long' })}
           </p>
