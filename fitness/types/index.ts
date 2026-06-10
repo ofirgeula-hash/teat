@@ -19,7 +19,7 @@ export interface PlanSet {
 export interface PlanExercise {
   id: string;
   name: string;
-  notes: string;
+  notes: string[];
   sets: PlanSet[];
 }
 

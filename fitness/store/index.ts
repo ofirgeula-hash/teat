@@ -68,59 +68,59 @@ const defaultPlans: LocationWorkoutPlan[] = [
   {
     locationId: 'loc1', workoutTypeId: 'wt1',
     exercises: [
-      { id: 'l1w1e1', name: 'לחיצת חזה', notes: '', sets: s3(10, 60, 90) },
-      { id: 'l1w1e2', name: 'לחיצת חזה במשקולות', notes: '', sets: s3(12, 20, 60) },
-      { id: 'l1w1e3', name: 'פשיטת חזה בכבלים', notes: '', sets: s3(15, 15, 60) },
-      { id: 'l1w1e4', name: 'פשיטת יד בכבל (טריצפס)', notes: '', sets: s3(12, 30, 60) },
+      { id: 'l1w1e1', name: 'לחיצת חזה', notes: [], sets: s3(10, 60, 90) },
+      { id: 'l1w1e2', name: 'לחיצת חזה במשקולות', notes: [], sets: s3(12, 20, 60) },
+      { id: 'l1w1e3', name: 'פשיטת חזה בכבלים', notes: [], sets: s3(15, 15, 60) },
+      { id: 'l1w1e4', name: 'פשיטת יד בכבל (טריצפס)', notes: [], sets: s3(12, 30, 60) },
     ],
   },
   {
     locationId: 'loc1', workoutTypeId: 'wt2',
     exercises: [
-      { id: 'l1w2e1', name: 'מתח', notes: '', sets: s3(8, 0, 90) },
-      { id: 'l1w2e2', name: 'חתירה בכבל', notes: '', sets: s3(12, 50, 60) },
-      { id: 'l1w2e3', name: 'כפיפת יד עם מוט', notes: '', sets: s3(12, 30, 60) },
+      { id: 'l1w2e1', name: 'מתח', notes: [], sets: s3(8, 0, 90) },
+      { id: 'l1w2e2', name: 'חתירה בכבל', notes: [], sets: s3(12, 50, 60) },
+      { id: 'l1w2e3', name: 'כפיפת יד עם מוט', notes: [], sets: s3(12, 30, 60) },
     ],
   },
   {
     locationId: 'loc1', workoutTypeId: 'wt3',
     exercises: [
-      { id: 'l1w3e1', name: 'לחיצת כתפיים', notes: '', sets: s3(10, 40, 90) },
-      { id: 'l1w3e2', name: 'לחיצת כתפיים במשקולות', notes: '', sets: s3(12, 14, 60) },
+      { id: 'l1w3e1', name: 'לחיצת כתפיים', notes: [], sets: s3(10, 40, 90) },
+      { id: 'l1w3e2', name: 'לחיצת כתפיים במשקולות', notes: [], sets: s3(12, 14, 60) },
     ],
   },
   {
     locationId: 'loc1', workoutTypeId: 'wt4',
     exercises: [
-      { id: 'l1w4e1', name: 'סקוואט', notes: '', sets: s3(8, 80, 120) },
-      { id: 'l1w4e2', name: 'לג פרס', notes: '', sets: s3(12, 100, 90) },
+      { id: 'l1w4e1', name: 'סקוואט', notes: [], sets: s3(8, 80, 120) },
+      { id: 'l1w4e2', name: 'לג פרס', notes: [], sets: s3(12, 100, 90) },
     ],
   },
   {
     locationId: 'loc2', workoutTypeId: 'wt1',
     exercises: [
-      { id: 'l2w1e1', name: 'שכיבות סמיכה', notes: '', sets: s3(15, 0, 60) },
-      { id: 'l2w1e2', name: 'שכיבות סמיכה צרות (טריצפס)', notes: '', sets: s3(12, 0, 60) },
+      { id: 'l2w1e1', name: 'שכיבות סמיכה', notes: [], sets: s3(15, 0, 60) },
+      { id: 'l2w1e2', name: 'שכיבות סמיכה צרות (טריצפס)', notes: [], sets: s3(12, 0, 60) },
     ],
   },
   {
     locationId: 'loc2', workoutTypeId: 'wt2',
     exercises: [
-      { id: 'l2w2e1', name: 'מתח', notes: '', sets: s3(8, 0, 90) },
-      { id: 'l2w2e2', name: 'כפיפת יד עם משקולות', notes: '', sets: s3(12, 10, 60) },
+      { id: 'l2w2e1', name: 'מתח', notes: [], sets: s3(8, 0, 90) },
+      { id: 'l2w2e2', name: 'כפיפת יד עם משקולות', notes: [], sets: s3(12, 10, 60) },
     ],
   },
   {
     locationId: 'loc2', workoutTypeId: 'wt3',
     exercises: [
-      { id: 'l2w3e1', name: 'לחיצת כתפיים במשקולות', notes: '', sets: s3(12, 10, 60) },
+      { id: 'l2w3e1', name: 'לחיצת כתפיים במשקולות', notes: [], sets: s3(12, 10, 60) },
     ],
   },
   {
     locationId: 'loc2', workoutTypeId: 'wt4',
     exercises: [
-      { id: 'l2w4e1', name: 'סקוואט', notes: '', sets: s3(15, 0, 90) },
-      { id: 'l2w4e2', name: "לאנג'", notes: '', sets: s3(12, 0, 60) },
+      { id: 'l2w4e1', name: 'סקוואט', notes: [], sets: s3(15, 0, 90) },
+      { id: 'l2w4e2', name: "לאנג'", notes: [], sets: s3(12, 0, 60) },
     ],
   },
 ];

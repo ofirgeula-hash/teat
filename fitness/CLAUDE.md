@@ -29,7 +29,7 @@ GitHub: `ofirgeula-hash/teat`, deploy branch: `main` (auto-deploys to Vercel).
 WorkoutType { id, name, emoji, color }               // 4 global types
 Location    { id, name }                              // gym / home
 LocationWorkoutPlan { locationId, workoutTypeId, exercises: PlanExercise[] }
-PlanExercise { id, name, notes: string, sets: PlanSet[] }
+PlanExercise { id, name, notes: string[], sets: PlanSet[] }
 PlanSet      { reps, weight, restSeconds }
 WorkoutSession { id, workoutTypeId, locationId, startedAt, endedAt, sets[], notes }
 SessionSet { id, exerciseId, exerciseName, setNumber, weight, reps, rpe, completedAt }

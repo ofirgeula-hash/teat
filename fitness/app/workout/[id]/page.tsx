@@ -1,10 +1,10 @@
 'use client';
 import { useParams, useRouter } from 'next/navigation';
 import { useStore, getLastSessionSets } from '@/store';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { SessionSet, PlanExercise } from '@/types';
 import RestTimer from '@/components/RestTimer';
-import { ChevronDown, ChevronUp, Check } from 'lucide-react';
+import { ChevronDown, ChevronUp, Check, Plus, X } from 'lucide-react';
 
 export default function WorkoutPage() {
   const { id } = useParams<{ id: string }>(); // workoutTypeId
@@ -16,6 +16,8 @@ export default function WorkoutPage() {
   const [selectedLocationId, setSelectedLocationId] = useState('');
   const [restTimer, setRestTimer] = useState<{ seconds: number } | null>(null);
   const [expandedEx, setExpandedEx] = useState<Set<string>>(new Set());
+  const [localNotes, setLocalNotes] = useState<Record<string, string[]>>({});
+  const newNoteRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
   useEffect(() => {
     const state = useStore.getState();
@@ -50,8 +52,44 @@ export default function WorkoutPage() {
 
   function handleLocationChange(locId: string) {
     setSelectedLocationId(locId);
+    setLocalNotes({});
     const plan = locationPlans.find((p) => p.locationId === locId && p.workoutTypeId === id);
     if (plan) setExpandedEx(new Set(plan.exercises.map((e) => e.id)));
+  }
+
+  function getExNotes(ex: PlanExercise): string[] {
+    return localNotes[ex.id] ?? ex.notes;
+  }
+
+  function updateNote(ex: PlanExercise, noteIdx: number, val: string) {
+    const current = localNotes[ex.id] ?? ex.notes;
+    const updated = [...current];
+    updated[noteIdx] = val;
+    setLocalNotes((prev) => ({ ...prev, [ex.id]: updated }));
+  }
+
+  function addNote(ex: PlanExercise) {
+    const current = localNotes[ex.id] ?? ex.notes;
+    const updated = [...current, ''];
+    setLocalNotes((prev) => ({ ...prev, [ex.id]: updated }));
+    // Focus the new input after render
+    setTimeout(() => newNoteRefs.current[ex.id]?.focus(), 30);
+  }
+
+  function deleteNote(ex: PlanExercise, noteIdx: number) {
+    const current = localNotes[ex.id] ?? ex.notes;
+    const updated = current.filter((_, i) => i !== noteIdx);
+    setLocalNotes((prev) => ({ ...prev, [ex.id]: updated }));
+    saveExNotes(ex, updated);
+  }
+
+  function saveExNotes(ex: PlanExercise, notes?: string[]) {
+    if (!currentPlan) return;
+    const toSave = (notes ?? localNotes[ex.id] ?? ex.notes).filter((n) => n.trim());
+    const updated = currentPlan.exercises.map((e) =>
+      e.id === ex.id ? { ...e, notes: toSave } : e
+    );
+    store.upsertPlan(selectedLocationId, id, updated);
   }
 
   function getSetsForExercise(exId: string): SessionSet[] {
@@ -79,14 +117,6 @@ export default function WorkoutPage() {
     store.addSet({ exerciseId: ex.id, exerciseName: ex.name, setNumber: setIdx, weight, reps, rpe });
     const rest = ex.sets[setIdx]?.restSeconds ?? settings.defaultRestSeconds;
     setRestTimer({ seconds: rest });
-  }
-
-  function saveNotes(ex: PlanExercise, newNotes: string) {
-    if (!currentPlan) return;
-    const updated = currentPlan.exercises.map((e) =>
-      e.id === ex.id ? { ...e, notes: newNotes } : e
-    );
-    store.upsertPlan(selectedLocationId, id, updated);
   }
 
   function finish() {
@@ -134,6 +164,7 @@ export default function WorkoutPage() {
         {exercises.map((ex) => {
           const isExpanded = expandedEx.has(ex.id);
           const doneSets = getSetsForExercise(ex.id);
+          const notes = getExNotes(ex);
 
           return (
             <div key={ex.id} className="bg-gray-900 rounded-xl overflow-hidden">
@@ -162,17 +193,39 @@ export default function WorkoutPage() {
 
               {isExpanded && (
                 <>
-                  <div className="px-4 pb-2">
-                    <textarea
-                      key={ex.id + selectedLocationId}
-                      defaultValue={ex.notes}
-                      onBlur={(e) => saveNotes(ex, e.target.value)}
-                      placeholder="הערות לתרגיל..."
-                      rows={2}
-                      className="w-full bg-gray-800 rounded-lg px-3 py-2 text-gray-300 text-xs border border-gray-700 focus:border-blue-500 focus:outline-none resize-none"
-                    />
+                  {/* Notes */}
+                  <div className="px-4 pb-2 space-y-1">
+                    {notes.map((note, noteIdx) => (
+                      <div key={noteIdx} className="flex items-center gap-2">
+                        <span className="text-gray-600 text-xs shrink-0">•</span>
+                        <input
+                          value={note}
+                          onChange={(e) => updateNote(ex, noteIdx, e.target.value)}
+                          onBlur={() => saveExNotes(ex)}
+                          placeholder="הערה..."
+                          ref={noteIdx === notes.length - 1
+                            ? (el) => { newNoteRefs.current[ex.id] = el; }
+                            : undefined}
+                          className="flex-1 bg-transparent text-gray-400 text-xs focus:outline-none focus:text-gray-200 placeholder-gray-700"
+                        />
+                        <button
+                          onClick={() => deleteNote(ex, noteIdx)}
+                          className="text-gray-700 active:text-red-400 shrink-0"
+                        >
+                          <X size={11} />
+                        </button>
+                      </div>
+                    ))}
+                    <button
+                      onClick={() => addNote(ex)}
+                      className="flex items-center gap-1 text-gray-700 text-xs mt-0.5 active:text-gray-400"
+                    >
+                      <Plus size={10} />
+                      <span>הוסף הערה</span>
+                    </button>
                   </div>
 
+                  {/* Sets */}
                   <div className="px-4 pb-4 space-y-2">
                     <div className="grid grid-cols-12 gap-1 text-xs text-gray-500 text-center mb-1">
                       <div className="col-span-1">סט</div>
