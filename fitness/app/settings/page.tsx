@@ -296,7 +296,7 @@ function WorkoutTypeAccordion({ wt, exercises, onSave }: {
       {
         id: crypto.randomUUID(),
         name: '',
-        notes: '',
+        notes: [],
         sets: [{ reps: 10, weight: 0, restSeconds: 90 }],
       },
     ]);
@@ -352,13 +352,34 @@ function WorkoutTypeAccordion({ wt, exercises, onSave }: {
               </div>
 
               {/* Notes */}
-              <textarea
-                value={ex.notes}
-                onChange={(e) => updateExercise(exIdx, { notes: e.target.value })}
-                placeholder="הערות (אופציונלי)"
-                rows={2}
-                className="w-full bg-gray-700 rounded px-2 py-1.5 text-gray-300 text-xs border border-gray-600 focus:border-blue-500 focus:outline-none resize-none"
-              />
+              <div className="space-y-1">
+                {ex.notes.map((note, ni) => (
+                  <div key={ni} className="flex items-center gap-1">
+                    <input
+                      value={note}
+                      onChange={(e) => {
+                        const notes = [...ex.notes];
+                        notes[ni] = e.target.value;
+                        updateExercise(exIdx, { notes });
+                      }}
+                      placeholder="הערה..."
+                      className="flex-1 bg-gray-700 rounded px-2 py-1 text-gray-300 text-xs border border-gray-600 focus:border-blue-500 focus:outline-none"
+                    />
+                    <button
+                      onClick={() => updateExercise(exIdx, { notes: ex.notes.filter((_, i) => i !== ni) })}
+                      className="text-gray-600 active:text-red-400 shrink-0"
+                    >
+                      <X size={12} />
+                    </button>
+                  </div>
+                ))}
+                <button
+                  onClick={() => updateExercise(exIdx, { notes: [...ex.notes, ''] })}
+                  className="flex items-center gap-1 text-gray-600 text-xs"
+                >
+                  <Plus size={10} /> הוסף הערה
+                </button>
+              </div>
 
               {/* Sets */}
               <div className="space-y-1">
