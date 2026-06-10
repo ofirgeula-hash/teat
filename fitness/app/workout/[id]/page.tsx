@@ -2,12 +2,13 @@
 import { useParams, useRouter } from 'next/navigation';
 import { useStore, getLastSessionSets } from '@/store';
 import { useEffect, useRef, useState } from 'react';
-import type { SessionSet, PlanExercise } from '@/types';
+import type { SessionSet, PlanExercise, PlanSet, EquipmentType } from '@/types';
+import { EQUIPMENT_LABELS } from '@/types';
 import RestTimer from '@/components/RestTimer';
 import { ChevronDown, ChevronUp, Check, Plus, X } from 'lucide-react';
 
 export default function WorkoutPage() {
-  const { id } = useParams<{ id: string }>(); // workoutTypeId
+  const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const store = useStore();
   const { workoutTypes, locations, locationPlans, sessions, activeSession, settings } = store;
@@ -17,6 +18,7 @@ export default function WorkoutPage() {
   const [restTimer, setRestTimer] = useState<{ seconds: number } | null>(null);
   const [expandedEx, setExpandedEx] = useState<Set<string>>(new Set());
   const [localNotes, setLocalNotes] = useState<Record<string, string[]>>({});
+  const [activeEquipment, setActiveEquipment] = useState<Record<string, EquipmentType>>({});
   const newNoteRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
   useEffect(() => {
@@ -28,7 +30,10 @@ export default function WorkoutPage() {
       const plan = state.locationPlans.find(
         (p) => p.locationId === locId && p.workoutTypeId === id
       );
-      if (plan) setExpandedEx(new Set(plan.exercises.map((e) => e.id)));
+      if (plan) {
+        setExpandedEx(new Set(plan.exercises.map((e) => e.id)));
+        initEquipment(plan.exercises);
+      }
       return;
     }
 
@@ -39,9 +44,24 @@ export default function WorkoutPage() {
       const plan = state.locationPlans.find(
         (p) => p.locationId === firstLocId && p.workoutTypeId === id
       );
-      if (plan) setExpandedEx(new Set(plan.exercises.map((e) => e.id)));
+      if (plan) {
+        setExpandedEx(new Set(plan.exercises.map((e) => e.id)));
+        initEquipment(plan.exercises);
+      }
     }
   }, [id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  function initEquipment(exercises: PlanExercise[]) {
+    setActiveEquipment((prev) => {
+      const next = { ...prev };
+      exercises.forEach((ex) => {
+        if (ex.equipment?.length >= 2 && !next[ex.id]) {
+          next[ex.id] = ex.equipment[0];
+        }
+      });
+      return next;
+    });
+  }
 
   if (!workoutType) {
     return (
@@ -66,11 +86,32 @@ export default function WorkoutPage() {
     setSelectedLocationId(locId);
     setLocalNotes({});
     const plan = locationPlans.find((p) => p.locationId === locId && p.workoutTypeId === id);
-    if (plan) setExpandedEx(new Set(plan.exercises.map((e) => e.id)));
+    if (plan) {
+      setExpandedEx(new Set(plan.exercises.map((e) => e.id)));
+      initEquipment(plan.exercises);
+    }
+  }
+
+  function getActiveEquipment(ex: PlanExercise): EquipmentType | undefined {
+    if (!ex.equipment?.length) return undefined;
+    if (ex.equipment.length === 1) return ex.equipment[0];
+    return activeEquipment[ex.id] ?? ex.equipment[0];
   }
 
   function getExNotes(ex: PlanExercise): string[] {
-    return localNotes[ex.id] ?? ex.notes;
+    const eq = getActiveEquipment(ex);
+    const base = ex.equipment?.length >= 2 && eq && ex.variants?.[eq]
+      ? ex.variants[eq]!.notes
+      : (localNotes[ex.id] ?? ex.notes);
+    return Array.isArray(base) ? base : base ? [base as unknown as string] : [];
+  }
+
+  function getExSets(ex: PlanExercise): PlanSet[] {
+    const eq = getActiveEquipment(ex);
+    if (ex.equipment?.length >= 2 && eq && ex.variants?.[eq]) {
+      return ex.variants[eq]!.sets;
+    }
+    return ex.sets ?? [];
   }
 
   function updateNote(ex: PlanExercise, noteIdx: number, val: string) {
@@ -84,7 +125,6 @@ export default function WorkoutPage() {
     const current = localNotes[ex.id] ?? ex.notes;
     const updated = [...current, ''];
     setLocalNotes((prev) => ({ ...prev, [ex.id]: updated }));
-    // Focus the new input after render
     setTimeout(() => newNoteRefs.current[ex.id]?.focus(), 30);
   }
 
@@ -96,7 +136,7 @@ export default function WorkoutPage() {
   }
 
   function saveExNotes(ex: PlanExercise, notes?: string[]) {
-    if (!currentPlan) return;
+    if (!currentPlan || ex.equipment?.length >= 2) return;
     const toSave = (notes ?? localNotes[ex.id] ?? ex.notes).filter((n) => n.trim());
     const updated = currentPlan.exercises.map((e) =>
       e.id === ex.id ? { ...e, notes: toSave } : e
@@ -104,19 +144,23 @@ export default function WorkoutPage() {
     store.upsertPlan(selectedLocationId, id, updated);
   }
 
-  function getSetsForExercise(exId: string): SessionSet[] {
+  function getSetsForExercise(exId: string, equipment?: EquipmentType): SessionSet[] {
     if (!activeSession) return [];
-    return activeSession.sets.filter((s) => s.exerciseId === exId);
+    return activeSession.sets.filter(
+      (s) => s.exerciseId === exId && (!equipment || s.equipment === equipment)
+    );
   }
 
-  function getDefaultSet(ex: PlanExercise, setIdx: number) {
+  function getDefaultSet(ex: PlanExercise, setIdx: number, equipment?: EquipmentType) {
     const lastSets = getLastSessionSets(
       sessions.filter((s) => s.endedAt && s.id !== activeSession?.id),
       id,
-      ex.id
+      ex.id,
+      equipment,
     );
     const last = lastSets[setIdx];
-    const planSet = ex.sets[setIdx] ?? ex.sets[ex.sets.length - 1] ?? { reps: 10, weight: 0, restSeconds: 90 };
+    const planSets = getExSets(ex);
+    const planSet = planSets[setIdx] ?? planSets[planSets.length - 1] ?? { reps: 10, weight: 0, restSeconds: 90 };
     return {
       weight: last?.weight ?? planSet.weight,
       reps: last?.reps ?? planSet.reps,
@@ -126,8 +170,10 @@ export default function WorkoutPage() {
 
   function markSetDone(ex: PlanExercise, weight: number, reps: number, rpe: number | null, setIdx: number) {
     if (!activeSession) return;
-    store.addSet({ exerciseId: ex.id, exerciseName: ex.name, setNumber: setIdx, weight, reps, rpe });
-    const rest = ex.sets[setIdx]?.restSeconds ?? settings.defaultRestSeconds;
+    const equipment = getActiveEquipment(ex);
+    store.addSet({ exerciseId: ex.id, exerciseName: ex.name, setNumber: setIdx, weight, reps, rpe, equipment });
+    const planSets = getExSets(ex);
+    const rest = planSets[setIdx]?.restSeconds ?? settings.defaultRestSeconds;
     setRestTimer({ seconds: rest });
   }
 
@@ -175,8 +221,11 @@ export default function WorkoutPage() {
 
         {exercises.map((ex) => {
           const isExpanded = expandedEx.has(ex.id);
-          const doneSets = getSetsForExercise(ex.id);
+          const hasDualEquipment = (ex.equipment?.length ?? 0) >= 2;
+          const currentEq = getActiveEquipment(ex);
+          const doneSets = getSetsForExercise(ex.id, hasDualEquipment ? currentEq : undefined);
           const notes = getExNotes(ex);
+          const planSets = getExSets(ex);
 
           return (
             <div key={ex.id} className="bg-gray-900 rounded-xl overflow-hidden">
@@ -197,45 +246,83 @@ export default function WorkoutPage() {
                     <ChevronDown size={18} className="text-gray-400" />
                   )}
                   <div className="text-xs text-gray-500">
-                    {doneSets.length}/{ex.sets.length}
+                    {doneSets.length}/{planSets.length}
                   </div>
+                  {ex.equipment?.length === 1 && (
+                    <span className="text-xs text-gray-600 bg-gray-800 px-2 py-0.5 rounded-full">
+                      {EQUIPMENT_LABELS[ex.equipment[0]]}
+                    </span>
+                  )}
                 </div>
                 <div className="font-semibold text-white">{ex.name}</div>
               </button>
 
               {isExpanded && (
                 <>
-                  {/* Notes */}
-                  <div className="px-4 pb-2 space-y-1">
-                    {notes.map((note, noteIdx) => (
-                      <div key={noteIdx} className="flex items-center gap-2">
-                        <span className="text-gray-600 text-xs shrink-0">•</span>
-                        <input
-                          value={note}
-                          onChange={(e) => updateNote(ex, noteIdx, e.target.value)}
-                          onBlur={() => saveExNotes(ex)}
-                          placeholder="הערה..."
-                          ref={noteIdx === notes.length - 1
-                            ? (el) => { newNoteRefs.current[ex.id] = el; }
-                            : undefined}
-                          className="flex-1 bg-transparent text-gray-400 text-xs focus:outline-none focus:text-gray-200 placeholder-gray-700"
-                        />
+                  {/* Equipment tabs for dual-equipment exercises */}
+                  {hasDualEquipment && (
+                    <div className="px-4 pb-2 flex gap-2 justify-end">
+                      {ex.equipment.map((eq) => (
                         <button
-                          onClick={() => deleteNote(ex, noteIdx)}
-                          className="text-gray-700 active:text-red-400 shrink-0"
+                          key={eq}
+                          onClick={() => setActiveEquipment((prev) => ({ ...prev, [ex.id]: eq }))}
+                          className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
+                            currentEq === eq
+                              ? 'bg-blue-600 text-white'
+                              : 'bg-gray-800 text-gray-400'
+                          }`}
                         >
-                          <X size={11} />
+                          {EQUIPMENT_LABELS[eq]}
                         </button>
-                      </div>
-                    ))}
-                    <button
-                      onClick={() => addNote(ex)}
-                      className="flex items-center gap-1 text-gray-700 text-xs mt-0.5 active:text-gray-400"
-                    >
-                      <Plus size={10} />
-                      <span>הוסף הערה</span>
-                    </button>
-                  </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Notes — only shown for single/no equipment */}
+                  {!hasDualEquipment && (
+                    <div className="px-4 pb-2 space-y-1">
+                      {notes.map((note, noteIdx) => (
+                        <div key={noteIdx} className="flex items-center gap-2">
+                          <span className="text-gray-600 text-xs shrink-0">•</span>
+                          <input
+                            value={note}
+                            onChange={(e) => updateNote(ex, noteIdx, e.target.value)}
+                            onBlur={() => saveExNotes(ex)}
+                            placeholder="הערה..."
+                            ref={noteIdx === notes.length - 1
+                              ? (el) => { newNoteRefs.current[ex.id] = el; }
+                              : undefined}
+                            className="flex-1 bg-transparent text-gray-400 text-xs focus:outline-none focus:text-gray-200 placeholder-gray-700"
+                          />
+                          <button
+                            onClick={() => deleteNote(ex, noteIdx)}
+                            className="text-gray-700 active:text-red-400 shrink-0"
+                          >
+                            <X size={11} />
+                          </button>
+                        </div>
+                      ))}
+                      <button
+                        onClick={() => addNote(ex)}
+                        className="flex items-center gap-1 text-gray-700 text-xs mt-0.5 active:text-gray-400"
+                      >
+                        <Plus size={10} />
+                        <span>הוסף הערה</span>
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Notes for dual equipment — read-only from plan */}
+                  {hasDualEquipment && notes.length > 0 && (
+                    <div className="px-4 pb-2 space-y-1">
+                      {notes.map((note, noteIdx) => (
+                        <div key={noteIdx} className="flex items-start gap-2">
+                          <span className="text-gray-600 text-xs shrink-0 mt-0.5">•</span>
+                          <span className="text-gray-500 text-xs">{note}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
 
                   {/* Sets */}
                   <div className="px-4 pb-4 space-y-2">
@@ -247,13 +334,13 @@ export default function WorkoutPage() {
                       <div className="col-span-2"></div>
                     </div>
 
-                    {Array.from({ length: Math.max(ex.sets.length, doneSets.length) }).map(
+                    {Array.from({ length: Math.max(planSets.length, doneSets.length) }).map(
                       (_, setIdx) => {
-                        const def = getDefaultSet(ex, setIdx);
+                        const def = getDefaultSet(ex, setIdx, hasDualEquipment ? currentEq : undefined);
                         const done = doneSets[setIdx];
                         return (
                           <SetRow
-                            key={setIdx}
+                            key={`${ex.id}-${currentEq ?? 'none'}-${setIdx}`}
                             setIdx={setIdx + 1}
                             defaultWeight={def.weight}
                             defaultReps={def.reps}
