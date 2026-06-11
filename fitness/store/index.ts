@@ -353,7 +353,7 @@ export const useStore = create<AppState>()(
     }),
     {
       name: 'fitness-store-v2',
-      version: 2,
+      version: 3,
       migrate: (persistedState: unknown, version: number) => {
         const state = persistedState as AppState;
 
@@ -401,6 +401,17 @@ export const useStore = create<AppState>()(
           ];
 
           state.workoutNotes = state.workoutNotes ?? [];
+        }
+
+        // v2→v3: ensure every exercise has notes:[] (guards against undefined from old toggleEquipment code)
+        if (version < 3) {
+          state.locationPlans = (state.locationPlans ?? []).map((plan) => ({
+            ...plan,
+            exercises: (plan.exercises ?? []).map((exItem) => ({
+              ...exItem,
+              notes: Array.isArray(exItem.notes) ? exItem.notes : [],
+            })),
+          }));
         }
 
         return state;

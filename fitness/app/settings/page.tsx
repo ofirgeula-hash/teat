@@ -384,7 +384,7 @@ function WorkoutTypeAccordion({ wt, exercises, onSave }: {
         variants: { ...ex.variants, [tab]: { sets: ex.variants?.[tab]?.sets ?? [], notes: variantNotes } },
       });
     } else {
-      const notes = [...ex.notes];
+      const notes = [...(ex.notes ?? [])];
       notes[noteIdx] = val;
       updateExercise(exIdx, { notes });
     }
@@ -398,7 +398,7 @@ function WorkoutTypeAccordion({ wt, exercises, onSave }: {
         variants: { ...ex.variants, [tab]: { sets: ex.variants?.[tab]?.sets ?? [], notes: [...(ex.variants?.[tab]?.notes ?? []), ''] } },
       });
     } else {
-      updateExercise(exIdx, { notes: [...ex.notes, ''] });
+      updateExercise(exIdx, { notes: [...(ex.notes ?? []), ''] });
     }
   }
 
@@ -411,7 +411,7 @@ function WorkoutTypeAccordion({ wt, exercises, onSave }: {
         variants: { ...ex.variants, [tab]: { sets: ex.variants?.[tab]?.sets ?? [], notes } },
       });
     } else {
-      updateExercise(exIdx, { notes: ex.notes.filter((_, i) => i !== noteIdx) });
+      updateExercise(exIdx, { notes: (ex.notes ?? []).filter((_, i) => i !== noteIdx) });
     }
   }
 
@@ -461,8 +461,8 @@ function WorkoutTypeAccordion({ wt, exercises, onSave }: {
           {localExs.map((ex, exIdx) => {
             const hasDual = (ex.equipment?.length ?? 0) >= 2;
             const activeTab = getActiveTab(exIdx, ex);
-            const currentNotes = hasDual ? (ex.variants?.[activeTab]?.notes ?? []) : ex.notes;
-            const currentSets = hasDual ? (ex.variants?.[activeTab]?.sets ?? []) : ex.sets;
+            const currentNotes = hasDual ? (ex.variants?.[activeTab]?.notes ?? []) : (ex.notes ?? []);
+            const currentSets = hasDual ? (ex.variants?.[activeTab]?.sets ?? []) : (ex.sets ?? []);
 
             return (
               <div key={ex.id} className="bg-gray-800 rounded-xl p-3 space-y-2">
