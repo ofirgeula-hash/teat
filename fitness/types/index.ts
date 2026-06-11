@@ -29,6 +29,27 @@ export interface ExerciseVariantData {
   sets: PlanSet[];
 }
 
+export type MuscleGroup =
+  | 'chest' | 'back' | 'shoulders' | 'rear_delts' | 'traps'
+  | 'biceps' | 'triceps' | 'quads' | 'hamstrings' | 'calves'
+  | 'adductors' | 'abs' | 'other';
+
+export const MUSCLE_GROUP_LABELS: Record<MuscleGroup, string> = {
+  chest: 'חזה',
+  back: 'גב',
+  shoulders: 'כתפיים',
+  rear_delts: 'כתף אחורית',
+  traps: 'טרפזים',
+  biceps: 'ביצפס',
+  triceps: 'טריצפס',
+  quads: 'קוואדריספס',
+  hamstrings: 'ביצפס ירך',
+  calves: 'תאומים',
+  adductors: 'אדוקטורים',
+  abs: 'בטן',
+  other: 'אחר',
+};
+
 export interface PlanExercise {
   id: string;
   name: string;
@@ -36,6 +57,7 @@ export interface PlanExercise {
   sets: PlanSet[];
   equipment: EquipmentType[];
   variants?: Partial<Record<EquipmentType, ExerciseVariantData>>;
+  muscleGroup?: MuscleGroup;
 }
 
 export interface LocationWorkoutPlan {
@@ -54,6 +76,7 @@ export interface SessionSet {
   rpe: number | null;
   completedAt: string;
   equipment?: EquipmentType;
+  muscleGroup?: MuscleGroup;
 }
 
 export interface WorkoutSession {
