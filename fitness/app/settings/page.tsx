@@ -9,6 +9,31 @@ type Tab = 'תוכנית' | 'כללי';
 
 const ALL_EQUIPMENT: EquipmentType[] = ['machine', 'dumbbells', 'plates'];
 
+// Keyword-based auto-tagging for new exercises
+const MUSCLE_KEYWORDS: Array<{ keywords: string[]; group: MuscleGroup }> = [
+  { keywords: ['חזה', 'פרפר', 'מקבילים', 'שכיבות סמיכה', 'bench', 'פולי עליון עם חבל', 'סמית'], group: 'chest' },
+  { keywords: ['גב', 'מתח', 'חתירה', 'טי-באר', 'לט', 'פולי', 'רוביט', 'seated row'], group: 'back' },
+  { keywords: ['כפיפות לגב תחתון', 'גב תחתון', 'hyperextension'], group: 'back' },
+  { keywords: ['כתף', 'הרחקת', 'lateral', 'overhead press', 'לחיצת כתף', 'לחיצת כתפיים'], group: 'shoulders' },
+  { keywords: ['כתף אחורית', 'rear delt', 'face pull', 'פרפר הפוך'], group: 'rear_delts' },
+  { keywords: ['טרפזים', 'shrug', 'שראג'], group: 'traps' },
+  { keywords: ['ביצפס', 'כפיפות', 'curl', 'פטישים', 'hammer', 'יד קדמית'], group: 'biceps' },
+  { keywords: ['טריצפס', 'פשיטת מרפקים', 'tricep', 'דיפס', 'יד אחורית', 'pushdown', 'צרות'], group: 'triceps' },
+  { keywords: ['סקוואט', 'לאנג', 'ראנג', 'פשיטת רגליים', 'leg press', 'מכרעיים', 'quad', 'פרונט'], group: 'quads' },
+  { keywords: ['כפיפת רגליים', 'leg curl', 'ביצפס ירך', 'hamstring', 'deadlift', 'סטיף'], group: 'hamstrings' },
+  { keywords: ['תאומים', 'calf', 'עגל'], group: 'calves' },
+  { keywords: ['סגירת רגליים', 'אדוקטור', 'adductor', 'inner thigh'], group: 'adductors' },
+  { keywords: ['בטן', 'כפיפות בטן', 'ab', 'plank', 'crunch'], group: 'abs' },
+];
+
+function guessMuscleGroup(name: string): MuscleGroup | undefined {
+  const lower = name.toLowerCase();
+  for (const { keywords, group } of MUSCLE_KEYWORDS) {
+    if (keywords.some((kw) => lower.includes(kw.toLowerCase()))) return group;
+  }
+  return undefined;
+}
+
 export default function SettingsPage() {
   const [tab, setTab] = useState<Tab>('תוכנית');
 
@@ -475,6 +500,12 @@ function WorkoutTypeAccordion({ wt, exercises, onSave }: {
                   <input
                     value={ex.name}
                     onChange={(e) => updateExercise(exIdx, { name: e.target.value })}
+                    onBlur={(e) => {
+                      if (!ex.muscleGroup) {
+                        const guess = guessMuscleGroup(e.target.value);
+                        if (guess) updateExercise(exIdx, { muscleGroup: guess });
+                      }
+                    }}
                     placeholder="שם תרגיל"
                     className="flex-1 bg-gray-700 rounded px-2 py-1.5 text-white text-sm border border-gray-600 focus:border-blue-500 focus:outline-none text-right"
                   />
