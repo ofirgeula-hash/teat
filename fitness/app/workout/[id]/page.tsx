@@ -33,7 +33,6 @@ export default function WorkoutPage() {
         (p) => p.locationId === locId && p.workoutTypeId === id
       );
       if (plan) {
-        setExpandedEx(new Set(plan.exercises.map((e) => e.id)));
         initEquipment(plan.exercises);
       }
       return;
@@ -47,7 +46,6 @@ export default function WorkoutPage() {
         (p) => p.locationId === firstLocId && p.workoutTypeId === id
       );
       if (plan) {
-        setExpandedEx(new Set(plan.exercises.map((e) => e.id)));
         initEquipment(plan.exercises);
       }
     }
@@ -86,11 +84,9 @@ export default function WorkoutPage() {
 
   function handleLocationChange(locId: string) {
     setSelectedLocationId(locId);
+    setExpandedEx(new Set());
     const plan = locationPlans.find((p) => p.locationId === locId && p.workoutTypeId === id);
-    if (plan) {
-      setExpandedEx(new Set(plan.exercises.map((e) => e.id)));
-      initEquipment(plan.exercises);
-    }
+    if (plan) initEquipment(plan.exercises);
   }
 
   function getActiveEquipment(ex: PlanExercise): EquipmentType | undefined {
@@ -170,10 +166,10 @@ export default function WorkoutPage() {
     <div className="min-h-screen bg-gray-950 pb-24">
       {/* Header */}
       <div
-        className="p-4 flex items-center justify-between"
+        className="px-4 pt-4 pb-3 space-y-2"
         style={{ borderBottom: `2px solid ${workoutType.color}` }}
       >
-        <div className="font-bold text-white">
+        <div className="font-bold text-white text-lg">
           {workoutType.emoji} {workoutType.name}
         </div>
         <div className="flex gap-2">
@@ -224,22 +220,23 @@ export default function WorkoutPage() {
                   })
                 }
               >
+                {/* Right side: chevron + name */}
                 <div className="flex items-center gap-2">
                   {isExpanded ? (
                     <ChevronUp size={18} className="text-gray-400" />
                   ) : (
                     <ChevronDown size={18} className="text-gray-400" />
                   )}
-                  <div className="text-xs text-gray-500">
-                    {doneCount}/{planSets.length}
-                  </div>
+                  <span className="font-semibold text-white">{ex.name}</span>
+                </div>
+                {/* Left side: equipment tag (single) or dual tabs label */}
+                <div className="flex items-center gap-1.5">
                   {ex.equipment?.length === 1 && (
                     <span className="text-xs text-gray-600 bg-gray-800 px-2 py-0.5 rounded-full">
                       {EQUIPMENT_LABELS[ex.equipment[0]]}
                     </span>
                   )}
                 </div>
-                <div className="font-semibold text-white">{ex.name}</div>
               </button>
 
               {isExpanded && (
