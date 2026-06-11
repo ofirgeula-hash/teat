@@ -53,6 +53,9 @@ AppSettings { defaultRestSeconds }
 - bodyWeightLogs: add/delete
 - updateSettings
 
+## Git workflow (mandatory)
+After every task: build → commit → push → open PR → squash-merge to main. Do all steps automatically without asking. Never leave work unmerged.
+
 ## Vercel build settings (monorepo override)
 - Build Command: `cd fitness && npm run build`
 - Output Directory: `fitness/.next`
