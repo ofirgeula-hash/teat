@@ -5,7 +5,11 @@ import { useEffect, useRef, useState } from 'react';
 import type { SessionSet, PlanExercise, PlanSet, EquipmentType } from '@/types';
 import { EQUIPMENT_LABELS } from '@/types';
 import RestTimer from '@/components/RestTimer';
-import { ChevronDown, ChevronUp, Check, Plus, X } from 'lucide-react';
+import { ChevronDown, ChevronUp, Check, Plus, X, ExternalLink } from 'lucide-react';
+
+function isUrl(text: string) {
+  return text.startsWith('http://') || text.startsWith('https://');
+}
 
 export default function WorkoutPage() {
   const { id } = useParams<{ id: string }>();
@@ -284,16 +288,28 @@ export default function WorkoutPage() {
                       {notes.map((note, noteIdx) => (
                         <div key={noteIdx} className="flex items-center gap-2">
                           <span className="text-gray-600 text-xs shrink-0">•</span>
-                          <input
-                            value={note}
-                            onChange={(e) => updateNote(ex, noteIdx, e.target.value)}
-                            onBlur={() => saveExNotes(ex)}
-                            placeholder="הערה..."
-                            ref={noteIdx === notes.length - 1
-                              ? (el) => { newNoteRefs.current[ex.id] = el; }
-                              : undefined}
-                            className="flex-1 bg-transparent text-gray-400 text-xs focus:outline-none focus:text-gray-200 placeholder-gray-700"
-                          />
+                          {isUrl(note) ? (
+                            <a
+                              href={note}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="flex-1 flex items-center gap-1 text-blue-400 text-xs active:text-blue-300 truncate"
+                            >
+                              <ExternalLink size={10} className="shrink-0" />
+                              <span className="truncate">{note}</span>
+                            </a>
+                          ) : (
+                            <input
+                              value={note}
+                              onChange={(e) => updateNote(ex, noteIdx, e.target.value)}
+                              onBlur={() => saveExNotes(ex)}
+                              placeholder="הערה..."
+                              ref={noteIdx === notes.length - 1
+                                ? (el) => { newNoteRefs.current[ex.id] = el; }
+                                : undefined}
+                              className="flex-1 bg-transparent text-gray-400 text-xs focus:outline-none focus:text-gray-200 placeholder-gray-700"
+                            />
+                          )}
                           <button
                             onClick={() => deleteNote(ex, noteIdx)}
                             className="text-gray-700 active:text-red-400 shrink-0"
@@ -318,7 +334,19 @@ export default function WorkoutPage() {
                       {notes.map((note, noteIdx) => (
                         <div key={noteIdx} className="flex items-start gap-2">
                           <span className="text-gray-600 text-xs shrink-0 mt-0.5">•</span>
-                          <span className="text-gray-500 text-xs">{note}</span>
+                          {isUrl(note) ? (
+                            <a
+                              href={note}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="flex items-center gap-1 text-blue-400 text-xs active:text-blue-300 truncate"
+                            >
+                              <ExternalLink size={10} className="shrink-0" />
+                              <span className="truncate">{note}</span>
+                            </a>
+                          ) : (
+                            <span className="text-gray-500 text-xs">{note}</span>
+                          )}
                         </div>
                       ))}
                     </div>
