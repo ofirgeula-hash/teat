@@ -1,8 +1,8 @@
 'use client';
 import { useStore } from '@/store';
 import { useState } from 'react';
-import type { Location, WorkoutType, PlanExercise, PlanSet, EquipmentType } from '@/types';
-import { EQUIPMENT_LABELS } from '@/types';
+import type { Location, WorkoutType, PlanExercise, PlanSet, EquipmentType, MuscleGroup } from '@/types';
+import { EQUIPMENT_LABELS, MUSCLE_GROUP_LABELS } from '@/types';
 import { Plus, Trash2, ChevronDown, ChevronUp, Edit2, Check, X } from 'lucide-react';
 
 type Tab = 'תוכנית' | 'כללי';
@@ -481,6 +481,20 @@ function WorkoutTypeAccordion({ wt, exercises, onSave }: {
                   <button onClick={() => removeExercise(exIdx)} className="text-red-400 shrink-0">
                     <Trash2 size={16} />
                   </button>
+                </div>
+
+                {/* Muscle group selector */}
+                <div className="flex justify-end">
+                  <select
+                    value={ex.muscleGroup ?? ''}
+                    onChange={(e) => updateExercise(exIdx, { muscleGroup: (e.target.value as MuscleGroup) || undefined })}
+                    className="bg-gray-700 rounded px-2 py-1 text-gray-300 text-xs border border-gray-600 focus:border-blue-500 focus:outline-none"
+                  >
+                    <option value="">קבוצת שריר...</option>
+                    {(Object.keys(MUSCLE_GROUP_LABELS) as MuscleGroup[]).map((mg) => (
+                      <option key={mg} value={mg}>{MUSCLE_GROUP_LABELS[mg]}</option>
+                    ))}
+                  </select>
                 </div>
 
                 {/* Equipment toggles */}

@@ -154,7 +154,7 @@ export default function WorkoutPage() {
     if (existingSetId) {
       store.updateSet(existingSetId, { weight, reps, rpe });
     } else {
-      store.addSet({ exerciseId: ex.id, exerciseName: ex.name, setNumber: setIdx, weight, reps, rpe, equipment });
+      store.addSet({ exerciseId: ex.id, exerciseName: ex.name, setNumber: setIdx, weight, reps, rpe, equipment, muscleGroup: ex.muscleGroup });
       const planSets = getExSets(ex);
       const rest = planSets[setIdx]?.restSeconds ?? settings.defaultRestSeconds;
       setRestTimer({ seconds: rest });
