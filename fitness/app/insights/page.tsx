@@ -150,25 +150,29 @@ function NoteCard({
 
   return (
     <div className="bg-gray-900 rounded-xl p-4">
-      <div className="flex items-start justify-between mb-2">
-        <div className="flex gap-2">
-          <button onClick={() => setEditing(true)} className="text-gray-400">
-            <Edit2 size={15} />
-          </button>
-          <button onClick={onDelete} className="text-red-400">
-            <Trash2 size={15} />
-          </button>
+      <div className="flex gap-3">
+        {/* Left: date + action icons */}
+        <div className="flex flex-col items-start gap-2 shrink-0">
+          <div className="text-xs text-gray-500">{dateStr}</div>
+          <div className="flex gap-2">
+            <button onClick={() => setEditing(true)} className="text-gray-400">
+              <Edit2 size={15} />
+            </button>
+            <button onClick={onDelete} className="text-red-400">
+              <Trash2 size={15} />
+            </button>
+          </div>
         </div>
-        <div className="text-right">
-          {note.title && <div className="font-semibold text-white text-sm">{note.title}</div>}
-          <div className="text-xs text-gray-500 mt-0.5">{dateStr}</div>
+        {/* Right: title + content */}
+        <div className="flex-1 text-right">
+          {note.title && <div className="font-semibold text-white text-sm mb-1">{note.title}</div>}
+          {note.content && (
+            <p className="text-gray-300 text-sm whitespace-pre-wrap leading-relaxed">
+              {note.content}
+            </p>
+          )}
         </div>
       </div>
-      {note.content && (
-        <p className="text-gray-300 text-sm whitespace-pre-wrap text-right leading-relaxed">
-          {note.content}
-        </p>
-      )}
     </div>
   );
 }
