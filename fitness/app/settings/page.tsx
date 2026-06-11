@@ -251,6 +251,7 @@ function WorkoutTypeAccordion({ wt, exercises, onSave }: {
   const [open, setOpen] = useState(false);
   const [localExs, setLocalExs] = useState<PlanExercise[]>(exercises);
   const [activeVariantTab, setActiveVariantTab] = useState<Record<number, EquipmentType>>({});
+  const [saved, setSaved] = useState(false);
 
   function toggle() {
     if (!open) setLocalExs(exercises);
@@ -259,6 +260,8 @@ function WorkoutTypeAccordion({ wt, exercises, onSave }: {
 
   function save() {
     onSave(localExs);
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2000);
   }
 
   function updateExercise(idx: number, updates: Partial<PlanExercise>) {
@@ -277,18 +280,21 @@ function WorkoutTypeAccordion({ wt, exercises, onSave }: {
       next = [...current, eq];
     }
 
-    // When adding 2nd equipment, move existing sets/notes into variants
-    let variants = { ...(ex.variants ?? {}) };
+    // Always preserve all variant data — never delete
+    const variants = { ...(ex.variants ?? {}) };
+
     if (next.length === 2) {
+      // Copy ALL existing notes + sets to both variants (only init if not already present)
       if (!variants[next[0]]) {
         variants[next[0]] = { notes: [...(ex.notes ?? [])], sets: [...(ex.sets ?? [])] };
       }
       if (!variants[next[1]]) {
-        variants[next[1]] = { notes: [], sets: [...(ex.sets ?? [])] };
+        // Copy ALL notes to the second variant too — user will prune manually
+        variants[next[1]] = { notes: [...(ex.notes ?? [])], sets: [...(ex.sets ?? [])] };
       }
     }
 
-    // When going back to 1 or 0, move variant data back to top-level
+    // When going back to 1 or 0, sync top-level from the remaining variant
     const sets = next.length <= 1 ? (variants[next[0]]?.sets ?? ex.sets ?? []) : ex.sets;
     const notes = next.length <= 1 ? (variants[next[0]]?.notes ?? ex.notes ?? []) : ex.notes;
 
@@ -296,7 +302,7 @@ function WorkoutTypeAccordion({ wt, exercises, onSave }: {
       equipment: next,
       sets,
       notes,
-      variants: next.length >= 2 ? variants : undefined,
+      variants,  // always preserve variants, even for single equipment
     });
 
     // Set default tab for new 2nd equipment
@@ -588,9 +594,11 @@ function WorkoutTypeAccordion({ wt, exercises, onSave }: {
 
           <button
             onClick={save}
-            className="w-full bg-blue-600 text-white py-2.5 rounded-xl text-sm font-bold"
+            className={`w-full py-2.5 rounded-xl text-sm font-bold transition-colors ${
+              saved ? 'bg-green-600 text-white' : 'bg-blue-600 text-white'
+            }`}
           >
-            שמור שינויים
+            {saved ? '✓ נשמר' : 'שמור שינויים'}
           </button>
         </div>
       )}

@@ -1,11 +1,11 @@
 'use client';
 import { useParams, useRouter } from 'next/navigation';
 import { useStore, getLastSessionSets } from '@/store';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { SessionSet, PlanExercise, PlanSet, EquipmentType } from '@/types';
 import { EQUIPMENT_LABELS } from '@/types';
 import RestTimer from '@/components/RestTimer';
-import { ChevronDown, ChevronUp, Check, Plus, X, ExternalLink } from 'lucide-react';
+import { ChevronDown, ChevronUp, ExternalLink } from 'lucide-react';
 
 function isUrl(text: string) {
   return text.startsWith('http://') || text.startsWith('https://');
@@ -21,9 +21,7 @@ export default function WorkoutPage() {
   const [selectedLocationId, setSelectedLocationId] = useState('');
   const [restTimer, setRestTimer] = useState<{ seconds: number } | null>(null);
   const [expandedEx, setExpandedEx] = useState<Set<string>>(new Set());
-  const [localNotes, setLocalNotes] = useState<Record<string, string[]>>({});
   const [activeEquipment, setActiveEquipment] = useState<Record<string, EquipmentType>>({});
-  const newNoteRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
   useEffect(() => {
     const state = useStore.getState();
@@ -59,7 +57,7 @@ export default function WorkoutPage() {
     setActiveEquipment((prev) => {
       const next = { ...prev };
       exercises.forEach((ex) => {
-        if (ex.equipment?.length >= 2 && !next[ex.id]) {
+        if ((ex.equipment?.length ?? 0) >= 2 && !next[ex.id]) {
           next[ex.id] = ex.equipment[0];
         }
       });
@@ -88,7 +86,6 @@ export default function WorkoutPage() {
 
   function handleLocationChange(locId: string) {
     setSelectedLocationId(locId);
-    setLocalNotes({});
     const plan = locationPlans.find((p) => p.locationId === locId && p.workoutTypeId === id);
     if (plan) {
       setExpandedEx(new Set(plan.exercises.map((e) => e.id)));
@@ -104,48 +101,19 @@ export default function WorkoutPage() {
 
   function getExNotes(ex: PlanExercise): string[] {
     const eq = getActiveEquipment(ex);
-    const base = ex.equipment?.length >= 2 && eq && ex.variants?.[eq]
+    const hasDual = (ex.equipment?.length ?? 0) >= 2;
+    const raw = hasDual && eq && ex.variants?.[eq]
       ? ex.variants[eq]!.notes
-      : (localNotes[ex.id] ?? ex.notes);
-    return Array.isArray(base) ? base : base ? [base as unknown as string] : [];
+      : ex.notes;
+    return Array.isArray(raw) ? raw : raw ? [raw as unknown as string] : [];
   }
 
   function getExSets(ex: PlanExercise): PlanSet[] {
     const eq = getActiveEquipment(ex);
-    if (ex.equipment?.length >= 2 && eq && ex.variants?.[eq]) {
+    if ((ex.equipment?.length ?? 0) >= 2 && eq && ex.variants?.[eq]) {
       return ex.variants[eq]!.sets;
     }
     return ex.sets ?? [];
-  }
-
-  function updateNote(ex: PlanExercise, noteIdx: number, val: string) {
-    const current = localNotes[ex.id] ?? ex.notes;
-    const updated = [...current];
-    updated[noteIdx] = val;
-    setLocalNotes((prev) => ({ ...prev, [ex.id]: updated }));
-  }
-
-  function addNote(ex: PlanExercise) {
-    const current = localNotes[ex.id] ?? ex.notes;
-    const updated = [...current, ''];
-    setLocalNotes((prev) => ({ ...prev, [ex.id]: updated }));
-    setTimeout(() => newNoteRefs.current[ex.id]?.focus(), 30);
-  }
-
-  function deleteNote(ex: PlanExercise, noteIdx: number) {
-    const current = localNotes[ex.id] ?? ex.notes;
-    const updated = current.filter((_, i) => i !== noteIdx);
-    setLocalNotes((prev) => ({ ...prev, [ex.id]: updated }));
-    saveExNotes(ex, updated);
-  }
-
-  function saveExNotes(ex: PlanExercise, notes?: string[]) {
-    if (!currentPlan || ex.equipment?.length >= 2) return;
-    const toSave = (notes ?? localNotes[ex.id] ?? ex.notes).filter((n) => n.trim());
-    const updated = currentPlan.exercises.map((e) =>
-      e.id === ex.id ? { ...e, notes: toSave } : e
-    );
-    store.upsertPlan(selectedLocationId, id, updated);
   }
 
   function getSetsForExercise(exId: string, equipment?: EquipmentType): SessionSet[] {
@@ -172,13 +140,25 @@ export default function WorkoutPage() {
     };
   }
 
-  function markSetDone(ex: PlanExercise, weight: number, reps: number, rpe: number | null, setIdx: number) {
+  function handleAutoSave(
+    ex: PlanExercise,
+    weight: number,
+    reps: number,
+    rpe: number | null,
+    setIdx: number,
+    existingSetId: string | undefined,
+  ) {
     if (!activeSession) return;
     const equipment = getActiveEquipment(ex);
-    store.addSet({ exerciseId: ex.id, exerciseName: ex.name, setNumber: setIdx, weight, reps, rpe, equipment });
-    const planSets = getExSets(ex);
-    const rest = planSets[setIdx]?.restSeconds ?? settings.defaultRestSeconds;
-    setRestTimer({ seconds: rest });
+
+    if (existingSetId) {
+      store.updateSet(existingSetId, { weight, reps, rpe });
+    } else {
+      store.addSet({ exerciseId: ex.id, exerciseName: ex.name, setNumber: setIdx, weight, reps, rpe, equipment });
+      const planSets = getExSets(ex);
+      const rest = planSets[setIdx]?.restSeconds ?? settings.defaultRestSeconds;
+      setRestTimer({ seconds: rest });
+    }
   }
 
   function finish() {
@@ -230,6 +210,7 @@ export default function WorkoutPage() {
           const doneSets = getSetsForExercise(ex.id, hasDualEquipment ? currentEq : undefined);
           const notes = getExNotes(ex);
           const planSets = getExSets(ex);
+          const doneCount = doneSets.filter(Boolean).length;
 
           return (
             <div key={ex.id} className="bg-gray-900 rounded-xl overflow-hidden">
@@ -250,7 +231,7 @@ export default function WorkoutPage() {
                     <ChevronDown size={18} className="text-gray-400" />
                   )}
                   <div className="text-xs text-gray-500">
-                    {doneSets.length}/{planSets.length}
+                    {doneCount}/{planSets.length}
                   </div>
                   {ex.equipment?.length === 1 && (
                     <span className="text-xs text-gray-600 bg-gray-800 px-2 py-0.5 rounded-full">
@@ -263,7 +244,7 @@ export default function WorkoutPage() {
 
               {isExpanded && (
                 <>
-                  {/* Equipment tabs for dual-equipment exercises */}
+                  {/* Equipment tabs */}
                   {hasDualEquipment && (
                     <div className="px-4 pb-2 flex gap-2 justify-end">
                       {ex.equipment.map((eq) => (
@@ -282,54 +263,8 @@ export default function WorkoutPage() {
                     </div>
                   )}
 
-                  {/* Notes — only shown for single/no equipment */}
-                  {!hasDualEquipment && (
-                    <div className="px-4 pb-2 space-y-1">
-                      {notes.map((note, noteIdx) => (
-                        <div key={noteIdx} className="flex items-center gap-2">
-                          <span className="text-gray-600 text-xs shrink-0">•</span>
-                          {isUrl(note) ? (
-                            <a
-                              href={note}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="flex-1 flex items-center gap-1 text-blue-400 text-xs active:text-blue-300 truncate"
-                            >
-                              <ExternalLink size={10} className="shrink-0" />
-                              <span className="truncate">{note}</span>
-                            </a>
-                          ) : (
-                            <input
-                              value={note}
-                              onChange={(e) => updateNote(ex, noteIdx, e.target.value)}
-                              onBlur={() => saveExNotes(ex)}
-                              placeholder="הערה..."
-                              ref={noteIdx === notes.length - 1
-                                ? (el) => { newNoteRefs.current[ex.id] = el; }
-                                : undefined}
-                              className="flex-1 bg-transparent text-gray-400 text-xs focus:outline-none focus:text-gray-200 placeholder-gray-700"
-                            />
-                          )}
-                          <button
-                            onClick={() => deleteNote(ex, noteIdx)}
-                            className="text-gray-700 active:text-red-400 shrink-0"
-                          >
-                            <X size={11} />
-                          </button>
-                        </div>
-                      ))}
-                      <button
-                        onClick={() => addNote(ex)}
-                        className="flex items-center gap-1 text-gray-700 text-xs mt-0.5 active:text-gray-400"
-                      >
-                        <Plus size={10} />
-                        <span>הוסף הערה</span>
-                      </button>
-                    </div>
-                  )}
-
-                  {/* Notes for dual equipment — read-only from plan */}
-                  {hasDualEquipment && notes.length > 0 && (
+                  {/* Notes — read-only */}
+                  {notes.length > 0 && (
                     <div className="px-4 pb-2 space-y-1">
                       {notes.map((note, noteIdx) => (
                         <div key={noteIdx} className="flex items-start gap-2">
@@ -356,10 +291,9 @@ export default function WorkoutPage() {
                   <div className="px-4 pb-4 space-y-2">
                     <div className="grid grid-cols-12 gap-1 text-xs text-gray-500 text-center mb-1">
                       <div className="col-span-1">סט</div>
-                      <div className="col-span-4">ק״ג</div>
-                      <div className="col-span-3">חז'</div>
+                      <div className="col-span-5">ק״ג</div>
+                      <div className="col-span-4">חז'</div>
                       <div className="col-span-2">RPE</div>
-                      <div className="col-span-2"></div>
                     </div>
 
                     {Array.from({ length: Math.max(planSets.length, doneSets.length) }).map(
@@ -372,9 +306,8 @@ export default function WorkoutPage() {
                             setIdx={setIdx + 1}
                             defaultWeight={def.weight}
                             defaultReps={def.reps}
-                            done={!!done}
-                            doneData={done}
-                            onComplete={(w, r, rpe) => markSetDone(ex, w, r, rpe, setIdx)}
+                            savedSet={done}
+                            onSave={(w, r, rpe) => handleAutoSave(ex, w, r, rpe, setIdx, done?.id)}
                           />
                         );
                       }
@@ -405,55 +338,54 @@ interface SetRowProps {
   setIdx: number;
   defaultWeight: number;
   defaultReps: number;
-  done: boolean;
-  doneData?: SessionSet;
-  onComplete: (weight: number, reps: number, rpe: number | null) => void;
+  savedSet?: SessionSet;
+  onSave: (weight: number, reps: number, rpe: number | null) => void;
 }
 
-function SetRow({ setIdx, defaultWeight, defaultReps, done, doneData, onComplete }: SetRowProps) {
-  const [weight, setWeight] = useState(String(defaultWeight));
-  const [reps, setReps] = useState(String(defaultReps));
-  const [rpe, setRpe] = useState('');
+function SetRow({ setIdx, defaultWeight, defaultReps, savedSet, onSave }: SetRowProps) {
+  const [weight, setWeight] = useState(String(savedSet?.weight ?? defaultWeight));
+  const [reps, setReps] = useState(String(savedSet?.reps ?? defaultReps));
+  const [rpe, setRpe] = useState(savedSet?.rpe != null ? String(savedSet.rpe) : '');
 
-  function complete() {
+  const isDone = !!savedSet;
+
+  function handleBlur() {
     const w = parseFloat(weight) || 0;
     const r = parseInt(reps) || 0;
-    if (r === 0) return;
-    onComplete(w, r, rpe ? parseInt(rpe) : null);
+    if (r > 0) {
+      onSave(w, r, rpe ? parseInt(rpe) : null);
+    }
   }
 
-  if (done && doneData) {
-    return (
-      <div className="grid grid-cols-12 gap-1 items-center text-sm bg-gray-800/50 rounded-lg p-2">
-        <div className="col-span-1 text-gray-500 text-center text-xs">{setIdx}</div>
-        <div className="col-span-4 text-center text-green-400 font-mono">{doneData.weight}</div>
-        <div className="col-span-3 text-center text-green-400 font-mono">{doneData.reps}</div>
-        <div className="col-span-2 text-center text-gray-400 text-xs">{doneData.rpe ?? '—'}</div>
-        <div className="col-span-2 flex justify-center">
-          <Check size={16} className="text-green-400" />
-        </div>
-      </div>
-    );
-  }
+  const inputClass = (done: boolean) =>
+    `w-full bg-gray-800 rounded-lg px-2 py-2 text-center text-sm border focus:outline-none font-mono ${
+      done
+        ? 'text-green-400 border-green-900 focus:border-green-600'
+        : 'text-white border-gray-700 focus:border-blue-500'
+    }`;
 
   return (
     <div className="grid grid-cols-12 gap-1 items-center">
-      <div className="col-span-1 text-gray-500 text-center text-xs">{setIdx}</div>
-      <div className="col-span-4">
+      <div className={`col-span-1 text-center text-xs font-medium ${isDone ? 'text-green-500' : 'text-gray-500'}`}>
+        {setIdx}
+      </div>
+      <div className="col-span-5">
         <input
           type="number"
           value={weight}
           onChange={(e) => setWeight(e.target.value)}
-          className="w-full bg-gray-800 rounded-lg px-2 py-2 text-white text-center text-sm border border-gray-700 focus:border-blue-500 focus:outline-none font-mono"
+          onBlur={handleBlur}
+          className={inputClass(isDone)}
           step="0.5"
         />
       </div>
-      <div className="col-span-3">
+      <div className="col-span-4">
         <input
           type="number"
           value={reps}
           onChange={(e) => setReps(e.target.value)}
-          className="w-full bg-gray-800 rounded-lg px-2 py-2 text-white text-center text-sm border border-gray-700 focus:border-blue-500 focus:outline-none font-mono"
+          onBlur={handleBlur}
+          className={inputClass(isDone)}
         />
       </div>
       <div className="col-span-2">
@@ -461,19 +393,14 @@ function SetRow({ setIdx, defaultWeight, defaultReps, done, doneData, onComplete
           type="number"
           value={rpe}
           onChange={(e) => setRpe(e.target.value)}
+          onBlur={handleBlur}
           placeholder="—"
           min="1"
           max="10"
-          className="w-full bg-gray-800 rounded-lg px-1 py-2 text-white text-center text-xs border border-gray-700 focus:border-blue-500 focus:outline-none"
+          className={`w-full bg-gray-800 rounded-lg px-1 py-2 text-center text-xs border focus:outline-none ${
+            isDone ? 'text-gray-500 border-green-900' : 'text-white border-gray-700 focus:border-blue-500'
+          }`}
         />
-      </div>
-      <div className="col-span-2 flex justify-center">
-        <button
-          onClick={complete}
-          className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center active:bg-blue-700"
-        >
-          <Check size={14} />
-        </button>
       </div>
     </div>
   );

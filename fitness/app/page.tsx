@@ -11,7 +11,7 @@ function weeklyCount(sessions: WorkoutSession[]) {
 }
 
 export default function HomePage() {
-  const { workoutTypes, sessions, activeSession } = useStore();
+  const { workoutTypes, sessions } = useStore();
   const router = useRouter();
   const count = weeklyCount(sessions);
 
@@ -29,19 +29,6 @@ export default function HomePage() {
           <div className="text-gray-500 text-xs">השבוע</div>
         </div>
       </div>
-
-      {activeSession && (
-        <button
-          onClick={() => router.push(`/workout/${activeSession.workoutTypeId}`)}
-          className="w-full bg-blue-600 rounded-xl p-4 text-right flex items-center justify-between"
-        >
-          <div>
-            <div className="font-bold">יש אימון פעיל!</div>
-            <div className="text-sm text-blue-200">לחץ להמשך</div>
-          </div>
-          <div className="text-2xl">▶</div>
-        </button>
-      )}
 
       <div>
         <h2 className="text-sm text-gray-400 font-medium mb-3">בחר אימון</h2>
