@@ -5,7 +5,7 @@ import { useEffect, useState } from 'react';
 import type { SessionSet, PlanExercise, PlanSet, EquipmentType, MuscleGroup } from '@/types';
 import { EQUIPMENT_LABELS, MUSCLE_GROUP_LABELS } from '@/types';
 import RestTimer from '@/components/RestTimer';
-import { ChevronDown, ChevronUp, ExternalLink, Edit2, Check, X, Plus, Trash2 } from 'lucide-react';
+import { ChevronDown, ChevronUp, ExternalLink, Edit2, Check, X, Plus, Trash2, Timer } from 'lucide-react';
 
 function isUrl(text: string) {
   return text.startsWith('http://') || text.startsWith('https://');
@@ -385,9 +385,6 @@ export default function WorkoutPage() {
       store.updateSet(existingSetId, { weight, reps, rpe });
     } else {
       store.addSet({ exerciseId: ex.id, exerciseName: ex.name, setNumber: setIdx, weight, reps, rpe, equipment, muscleGroup: ex.muscleGroup });
-      const planSets = getExSets(ex);
-      const rest = planSets[setIdx]?.restSeconds ?? settings.defaultRestSeconds;
-      setRestTimer({ seconds: rest });
     }
   }
 
@@ -415,12 +412,22 @@ export default function WorkoutPage() {
               {workoutType.emoji} {workoutType.name}
             </div>
           )}
-          <button
-            onClick={isEditing ? cancelEdit : enterEditMode}
-            className={`p-2 rounded-lg ${isEditing ? 'text-gray-400 active:text-white' : 'text-gray-500 active:text-gray-300'}`}
-          >
-            {isEditing ? <X size={18} /> : <Edit2 size={18} />}
-          </button>
+          <div className="flex items-center gap-1">
+            {!isEditing && (
+              <button
+                onClick={() => setRestTimer({ seconds: settings.defaultRestSeconds })}
+                className="p-2 rounded-lg text-gray-500 active:text-blue-400"
+              >
+                <Timer size={18} />
+              </button>
+            )}
+            <button
+              onClick={isEditing ? cancelEdit : enterEditMode}
+              className={`p-2 rounded-lg ${isEditing ? 'text-gray-400 active:text-white' : 'text-gray-500 active:text-gray-300'}`}
+            >
+              {isEditing ? <X size={18} /> : <Edit2 size={18} />}
+            </button>
+          </div>
         </div>
 
         {/* Location tabs */}
