@@ -57,6 +57,10 @@ export default function WorkoutPage() {
   const [confirmDeleteEx, setConfirmDeleteEx] = useState<number | null>(null);
   const [confirmDeleteLoc, setConfirmDeleteLoc] = useState<string | null>(null);
   const [showAddLoc, setShowAddLoc] = useState(false);
+
+  // Inline notes editing in view mode
+  const [editingNotesExId, setEditingNotesExId] = useState<string | null>(null);
+  const [inlineNotes, setInlineNotes] = useState<string[]>([]);
   const [newLocName, setNewLocName] = useState('');
 
   useEffect(() => {
@@ -298,6 +302,33 @@ export default function WorkoutPage() {
     if (target < 0 || target >= next.length) return;
     [next[idx], next[target]] = [next[target], next[idx]];
     setLocalExs(next);
+  }
+
+  // ── Inline notes editing (view mode) ─────────────────────────────────────
+
+  function openInlineNotes(ex: PlanExercise) {
+    setEditingNotesExId(ex.id);
+    setInlineNotes([...getExNotes(ex)]);
+  }
+
+  function saveInlineNotes(ex: PlanExercise) {
+    const filtered = inlineNotes.filter((n) => n.trim());
+    const hasDual = (ex.equipment?.length ?? 0) >= 2;
+    const eq = getActiveEquipment(ex);
+    const updated = exercises.map((e) => {
+      if (e.id !== ex.id) return e;
+      if (hasDual && eq && e.variants?.[eq]) {
+        return { ...e, variants: { ...e.variants, [eq]: { ...e.variants[eq]!, notes: filtered } } };
+      }
+      return { ...e, notes: filtered };
+    });
+    store.upsertPlan(selectedLocationId, id, updated);
+    setEditingNotesExId(null);
+  }
+
+  function cancelInlineNotes() {
+    setEditingNotesExId(null);
+    setInlineNotes([]);
   }
 
   // ── Normal mode helpers ───────────────────────────────────────────────────
@@ -669,21 +700,55 @@ export default function WorkoutPage() {
                         </div>
                       )}
 
-                      {notes.length > 0 && (
-                        <div className="px-4 pb-2 space-y-1">
-                          {notes.map((note, noteIdx) => (
-                            <div key={noteIdx} className="flex items-start gap-2">
-                              <span className="text-gray-600 text-xs shrink-0 mt-0.5">•</span>
-                              {isUrl(note) ? (
-                                <a href={note} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-blue-400 text-xs active:text-blue-300 truncate">
-                                  <ExternalLink size={10} className="shrink-0" />
-                                  <span className="truncate">{note}</span>
-                                </a>
-                              ) : (
-                                <span className="text-gray-500 text-xs">{note}</span>
-                              )}
+                      {editingNotesExId === ex.id ? (
+                        <div className="px-4 pb-3 space-y-2">
+                          {inlineNotes.map((note, ni) => (
+                            <div key={ni} className="flex items-center gap-1">
+                              <input
+                                value={note}
+                                onChange={(e) => setInlineNotes((prev) => prev.map((n, i) => i === ni ? e.target.value : n))}
+                                placeholder="הערה..."
+                                className="flex-1 bg-gray-800 rounded px-2 py-1 text-gray-300 text-xs border border-gray-700 focus:border-blue-500 focus:outline-none"
+                              />
+                              <button onClick={() => setInlineNotes((prev) => prev.filter((_, i) => i !== ni))} className="text-gray-600 active:text-red-400 shrink-0">
+                                <X size={12} />
+                              </button>
                             </div>
                           ))}
+                          <button onClick={() => setInlineNotes((prev) => [...prev, ''])} className="flex items-center gap-1 text-gray-600 text-xs">
+                            <Plus size={10} /> הוסף הערה
+                          </button>
+                          <div className="flex gap-2 pt-1">
+                            <button onClick={cancelInlineNotes} className="flex-1 bg-gray-800 text-gray-400 py-1.5 rounded-lg text-xs flex items-center justify-center gap-1">
+                              <X size={12} /> ביטול
+                            </button>
+                            <button onClick={() => saveInlineNotes(ex)} className="flex-1 bg-blue-600 text-white py-1.5 rounded-lg text-xs font-medium flex items-center justify-center gap-1">
+                              <Check size={12} /> שמור
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="px-4 pb-2">
+                          {notes.length > 0 && (
+                            <div className="space-y-1 mb-1">
+                              {notes.map((note, noteIdx) => (
+                                <div key={noteIdx} className="flex items-start gap-2">
+                                  <span className="text-gray-600 text-xs shrink-0 mt-0.5">•</span>
+                                  {isUrl(note) ? (
+                                    <a href={note} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-blue-400 text-xs active:text-blue-300 truncate">
+                                      <ExternalLink size={10} className="shrink-0" />
+                                      <span className="truncate">{note}</span>
+                                    </a>
+                                  ) : (
+                                    <span className="text-gray-500 text-xs">{note}</span>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                          <button onClick={() => openInlineNotes(ex)} className="flex items-center gap-1 text-gray-600 active:text-gray-400 text-xs">
+                            <Edit2 size={11} /> {notes.length > 0 ? 'ערוך הערות' : 'הוסף הערה'}
+                          </button>
                         </div>
                       )}
 
