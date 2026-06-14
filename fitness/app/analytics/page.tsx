@@ -108,37 +108,25 @@ function VolumeChart() {
 function BodyWeightChart() {
   const { bodyWeightLogs, addBodyWeight, deleteBodyWeight } = useStore();
   const [val, setVal] = useState('');
+  const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
+  const [showHistory, setShowHistory] = useState(false);
 
-  const data = [...bodyWeightLogs]
-    .sort((a, b) => a.date.localeCompare(b.date))
-    .slice(-30)
-    .map((l) => ({
-      date: new Date(l.date).toLocaleDateString('he-IL', { day: 'numeric', month: 'numeric' }),
-      משקל: l.weightKg,
-    }));
+  const sorted = [...bodyWeightLogs].sort((a, b) => a.date.localeCompare(b.date));
+  const data = sorted.slice(-30).map((l) => ({
+    date: new Date(l.date).toLocaleDateString('he-IL', { day: 'numeric', month: 'numeric' }),
+    משקל: l.weightKg,
+  }));
 
   function save() {
     const w = parseFloat(val);
     if (!w || w < 20 || w > 300) return;
-    addBodyWeight({ id: crypto.randomUUID(), date: new Date().toISOString().slice(0, 10), weightKg: w });
+    addBodyWeight({ id: crypto.randomUUID(), date, weightKg: w });
     setVal('');
+    setDate(new Date().toISOString().slice(0, 10));
   }
 
   return (
     <div className="space-y-4">
-      <div className="flex gap-2">
-        <input
-          type="number"
-          value={val}
-          onChange={(e) => setVal(e.target.value)}
-          placeholder='ק"ג'
-          className="flex-1 bg-gray-800 rounded-lg px-3 py-2 text-white text-sm border border-gray-700 focus:border-blue-500 focus:outline-none"
-          step="0.1"
-        />
-        <button onClick={save} className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium">
-          הוסף
-        </button>
-      </div>
       {data.length > 1 ? (
         <div className="bg-gray-900 rounded-xl p-4">
           <div className="text-sm text-gray-400 mb-3">משקל גוף לאורך זמן</div>
@@ -157,17 +145,54 @@ function BodyWeightChart() {
       ) : (
         <EmptyState message="הזן לפחות 2 נקודות משקל לצפייה בגרף" />
       )}
-      {bodyWeightLogs.slice(0, 5).map((l) => (
-        <div key={l.id} className="flex items-center justify-between bg-gray-900 rounded-lg px-4 py-3 text-sm">
-          <button onClick={() => deleteBodyWeight(l.id)} className="text-red-400 text-xs">
-            מחק
-          </button>
-          <div>
-            <span className="font-mono text-white">{l.weightKg} ק״ג</span>
-            <span className="text-gray-400 mr-3">{new Date(l.date).toLocaleDateString('he-IL')}</span>
-          </div>
+
+      <div className="bg-gray-900 rounded-xl p-4 space-y-3">
+        <div className="text-sm text-gray-400 font-medium">הוסף שקילה</div>
+        <div className="flex gap-2">
+          <input
+            type="number"
+            value={val}
+            onChange={(e) => setVal(e.target.value)}
+            placeholder='ק"ג'
+            onKeyDown={(e) => e.key === 'Enter' && save()}
+            className="flex-1 bg-gray-800 rounded-lg px-3 py-2 text-white text-sm border border-gray-700 focus:border-blue-500 focus:outline-none"
+            step="0.1"
+          />
+          <input
+            type="date"
+            value={date}
+            onChange={(e) => setDate(e.target.value)}
+            className="bg-gray-800 rounded-lg px-3 py-2 text-white text-sm border border-gray-700 focus:border-blue-500 focus:outline-none"
+          />
         </div>
-      ))}
+        <button onClick={save} className="w-full bg-blue-600 text-white py-2 rounded-lg text-sm font-medium">
+          הוסף
+        </button>
+      </div>
+
+      <button
+        onClick={() => setShowHistory((v) => !v)}
+        className="w-full flex items-center justify-between bg-gray-900 rounded-xl px-4 py-3 text-sm text-gray-400"
+      >
+        <span>היסטוריה ({bodyWeightLogs.length})</span>
+        <span>{showHistory ? '▲' : '▼'}</span>
+      </button>
+
+      {showHistory && (
+        <div className="space-y-1">
+          {sorted.slice().reverse().map((l) => (
+            <div key={l.id} className="flex items-center justify-between bg-gray-900 rounded-lg px-4 py-3 text-sm">
+              <button onClick={() => deleteBodyWeight(l.id)} className="text-red-400 text-xs">
+                מחק
+              </button>
+              <div>
+                <span className="font-mono text-white">{l.weightKg} ק״ג</span>
+                <span className="text-gray-400 mr-3">{new Date(l.date).toLocaleDateString('he-IL')}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
