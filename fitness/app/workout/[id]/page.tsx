@@ -41,7 +41,7 @@ export default function WorkoutPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const store = useStore();
-  const { workoutTypes, locations, locationPlans, sessions, activeSession, settings } = store;
+  const { workoutTypes, locations, locationPlans, sessions, activeSession, settings, exerciseLibrary } = store;
 
   const workoutType = workoutTypes.find((w) => w.id === id);
   const [selectedLocationId, setSelectedLocationId] = useState('');
@@ -57,6 +57,7 @@ export default function WorkoutPage() {
   const [confirmDeleteEx, setConfirmDeleteEx] = useState<number | null>(null);
   const [confirmDeleteLoc, setConfirmDeleteLoc] = useState<string | null>(null);
   const [showAddLoc, setShowAddLoc] = useState(false);
+  const [showExPicker, setShowExPicker] = useState(false);
 
   // Inline notes editing in view mode
   const [editingNotesExId, setEditingNotesExId] = useState<string | null>(null);
@@ -288,7 +289,24 @@ export default function WorkoutPage() {
   }
 
   function addExercise() {
-    setLocalExs((list) => [...list, { id: crypto.randomUUID(), name: '', notes: [], sets: [{ reps: 10, weight: 0, restSeconds: 90 }], equipment: [] }]);
+    if (exerciseLibrary.length > 0) {
+      setShowExPicker(true);
+    } else {
+      setLocalExs((list) => [...list, { id: crypto.randomUUID(), name: '', notes: [], sets: [{ reps: 10, weight: 0, restSeconds: 90 }], equipment: [] }]);
+    }
+  }
+
+  function addExerciseFromLibrary(libItem: import('@/types').ExerciseLibraryItem) {
+    setLocalExs((list) => [...list, {
+      id: crypto.randomUUID(),
+      name: libItem.nameHe || libItem.name,
+      notes: [],
+      sets: [{ reps: 10, weight: 0, restSeconds: settings.defaultRestSeconds }],
+      equipment: libItem.equipment,
+      muscleGroup: libItem.muscleGroup,
+      libraryId: libItem.id,
+    }]);
+    setShowExPicker(false);
   }
 
   function removeExercise(idx: number) {
@@ -707,6 +725,19 @@ export default function WorkoutPage() {
                         </div>
                       )}
 
+                      {ex.libraryId && (() => {
+                        const libItem = exerciseLibrary.find((l) => l.id === ex.libraryId);
+                        return libItem?.gifUrl ? (
+                          <div className="px-4 pb-2 flex justify-center">
+                            <img
+                              src={libItem.gifUrl}
+                              alt={libItem.name}
+                              className="w-40 h-40 object-contain rounded-xl bg-white"
+                            />
+                          </div>
+                        ) : null;
+                      })()}
+
                       {editingNotesExId === ex.id ? (
                         <div className="px-4 pb-3 space-y-2">
                           {inlineNotes.map((note, ni) => (
@@ -801,6 +832,101 @@ export default function WorkoutPage() {
       {restTimer && (
         <RestTimer seconds={restTimer.seconds} onClose={() => setRestTimer(null)} />
       )}
+
+      {showExPicker && (
+        <ExercisePicker
+          library={exerciseLibrary}
+          onSelect={addExerciseFromLibrary}
+          onAddBlank={() => {
+            setLocalExs((list) => [...list, { id: crypto.randomUUID(), name: '', notes: [], sets: [{ reps: 10, weight: 0, restSeconds: settings.defaultRestSeconds }], equipment: [] }]);
+            setShowExPicker(false);
+          }}
+          onClose={() => setShowExPicker(false)}
+        />
+      )}
+    </div>
+  );
+}
+
+function ExercisePicker({
+  library,
+  onSelect,
+  onAddBlank,
+  onClose,
+}: {
+  library: import('@/types').ExerciseLibraryItem[];
+  onSelect: (item: import('@/types').ExerciseLibraryItem) => void;
+  onAddBlank: () => void;
+  onClose: () => void;
+}) {
+  const [search, setSearch] = useState('');
+  const filtered = search.trim()
+    ? library.filter((e) => (e.nameHe ?? e.name).toLowerCase().includes(search.toLowerCase()))
+    : library;
+
+  const grouped = (Object.keys(MUSCLE_GROUP_LABELS) as MuscleGroup[]).reduce<Record<MuscleGroup, import('@/types').ExerciseLibraryItem[]>>((acc, mg) => {
+    acc[mg] = filtered.filter((e) => e.muscleGroup === mg);
+    return acc;
+  }, {} as Record<MuscleGroup, import('@/types').ExerciseLibraryItem[]>);
+
+  return (
+    <div className="fixed inset-0 z-50 bg-gray-950/90 flex flex-col">
+      <div className="flex items-center justify-between p-4 border-b border-gray-800">
+        <button onClick={onClose} className="text-gray-400"><X size={20} /></button>
+        <span className="font-semibold text-white text-sm">בחר תרגיל</span>
+        <button onClick={onAddBlank} className="text-blue-400 text-xs">+ ידני</button>
+      </div>
+      <div className="px-4 py-3">
+        <input
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="חפש תרגיל..."
+          autoFocus
+          className="w-full bg-gray-800 rounded-xl px-4 py-2.5 text-white text-sm border border-gray-700 focus:border-blue-500 focus:outline-none"
+        />
+      </div>
+      <div className="flex-1 overflow-y-auto px-4 pb-8 space-y-4">
+        {(Object.keys(MUSCLE_GROUP_LABELS) as MuscleGroup[]).map((mg) =>
+          grouped[mg].length > 0 ? (
+            <div key={mg}>
+              <div className="text-xs text-gray-500 font-medium mb-1.5">{MUSCLE_GROUP_LABELS[mg]}</div>
+              {grouped[mg].map((item) => (
+                <button
+                  key={item.id}
+                  onClick={() => onSelect(item)}
+                  className="w-full text-right bg-gray-900 rounded-xl px-4 py-3 mb-1.5 flex items-center justify-between active:bg-gray-800"
+                >
+                  <div className="text-right">
+                    <div className="text-white text-sm font-medium">{item.nameHe || item.name}</div>
+                    {item.nameHe && <div className="text-gray-600 text-xs">{item.name}</div>}
+                    {item.subMuscle && <div className="text-gray-500 text-xs">{item.subMuscle}</div>}
+                  </div>
+                  {item.gifUrl && (
+                    <img src={item.gifUrl} alt="" className="w-10 h-10 rounded-lg object-contain bg-white shrink-0 ml-3" />
+                  )}
+                </button>
+              ))}
+            </div>
+          ) : null
+        )}
+        {filtered.filter((e) => !e.muscleGroup).length > 0 && (
+          <div>
+            <div className="text-xs text-gray-500 font-medium mb-1.5">אחר</div>
+            {filtered.filter((e) => !e.muscleGroup).map((item) => (
+              <button
+                key={item.id}
+                onClick={() => onSelect(item)}
+                className="w-full text-right bg-gray-900 rounded-xl px-4 py-3 mb-1.5 active:bg-gray-800"
+              >
+                <div className="text-white text-sm">{item.nameHe || item.name}</div>
+              </button>
+            ))}
+          </div>
+        )}
+        {filtered.length === 0 && (
+          <div className="text-center text-gray-600 py-8 text-sm">לא נמצאו תרגילים</div>
+        )}
+      </div>
     </div>
   );
 }

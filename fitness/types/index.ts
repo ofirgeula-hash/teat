@@ -58,6 +58,7 @@ export interface PlanExercise {
   equipment: EquipmentType[];
   variants?: Partial<Record<EquipmentType, ExerciseVariantData>>;
   muscleGroup?: MuscleGroup;
+  libraryId?: string;
 }
 
 export interface LocationWorkoutPlan {
@@ -97,6 +98,19 @@ export interface BodyWeightLog {
 
 export interface AppSettings {
   defaultRestSeconds: number;
+  workoutXApiKey?: string;
+}
+
+export interface ExerciseLibraryItem {
+  id: string;
+  name: string;
+  nameHe?: string;
+  muscleGroup?: MuscleGroup;
+  subMuscle?: string;
+  equipment: EquipmentType[];
+  gifUrl?: string;
+  instructions?: string[];
+  keyPoints?: string;
 }
 
 export interface WorkoutNote {

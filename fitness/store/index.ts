@@ -13,6 +13,7 @@ import type {
   AppSettings,
   WorkoutNote,
   EquipmentType,
+  ExerciseLibraryItem,
 } from '@/types';
 
 interface AppState {
@@ -24,6 +25,7 @@ interface AppState {
   settings: AppSettings;
   activeSession: WorkoutSession | null;
   workoutNotes: WorkoutNote[];
+  exerciseLibrary: ExerciseLibraryItem[];
 
   addWorkoutType: (wt: WorkoutType) => void;
   updateWorkoutType: (id: string, updates: Partial<WorkoutType>) => void;
@@ -50,6 +52,10 @@ interface AppState {
   addWorkoutNote: (note: WorkoutNote) => void;
   updateWorkoutNote: (id: string, updates: Partial<WorkoutNote>) => void;
   deleteWorkoutNote: (id: string) => void;
+
+  addExerciseLibraryItem: (item: ExerciseLibraryItem) => void;
+  updateExerciseLibraryItem: (id: string, updates: Partial<ExerciseLibraryItem>) => void;
+  deleteExerciseLibraryItem: (id: string) => void;
 }
 
 function s(reps: number, weight: number, rest: number): PlanSet {
@@ -254,6 +260,7 @@ export const useStore = create<AppState>()(
       activeSession: null,
       settings: { defaultRestSeconds: 90 },
       workoutNotes: [],
+      exerciseLibrary: [],
 
       addWorkoutType: (wt) => set((s) => ({ workoutTypes: [...s.workoutTypes, wt] })),
       updateWorkoutType: (id, updates) =>
@@ -354,10 +361,19 @@ export const useStore = create<AppState>()(
         })),
       deleteWorkoutNote: (id) =>
         set((s) => ({ workoutNotes: s.workoutNotes.filter((n) => n.id !== id) })),
+
+      addExerciseLibraryItem: (item) =>
+        set((s) => ({ exerciseLibrary: [...s.exerciseLibrary, item] })),
+      updateExerciseLibraryItem: (id, updates) =>
+        set((s) => ({
+          exerciseLibrary: s.exerciseLibrary.map((e) => (e.id === id ? { ...e, ...updates } : e)),
+        })),
+      deleteExerciseLibraryItem: (id) =>
+        set((s) => ({ exerciseLibrary: s.exerciseLibrary.filter((e) => e.id !== id) })),
     }),
     {
       name: 'fitness-store-v2',
-      version: 4,
+      version: 5,
       migrate: (persistedState: unknown, version: number) => {
         const state = persistedState as AppState;
 
@@ -441,6 +457,11 @@ export const useStore = create<AppState>()(
               muscleGroup: exItem.muscleGroup ?? muscleMap[exItem.id],
             })),
           }));
+        }
+
+        // v4→v5: add exerciseLibrary
+        if (version < 5) {
+          state.exerciseLibrary = state.exerciseLibrary ?? [];
         }
 
         return state;
