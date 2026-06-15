@@ -178,9 +178,16 @@ function GeneralSection() {
 // ─── Exercise Library ─────────────────────────────────────────────────────────
 
 function ExerciseLibrarySection() {
-  const { exerciseLibrary, addExerciseLibraryItem, updateExerciseLibraryItem, deleteExerciseLibraryItem, settings } = useStore();
+  const { exerciseLibrary, addExerciseLibraryItem, updateExerciseLibraryItem, deleteExerciseLibraryItem, importExercisesFromPlans, settings } = useStore();
   const [showAddForm, setShowAddForm] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
+  const [importMsg, setImportMsg] = useState('');
+
+  function handleImport() {
+    const count = importExercisesFromPlans();
+    setImportMsg(count > 0 ? `יובאו ${count} תרגילים חדשים` : 'כל התרגילים כבר בספרייה');
+    setTimeout(() => setImportMsg(''), 3000);
+  }
 
   const grouped = ALL_MUSCLE_GROUPS.reduce<Record<MuscleGroup, ExerciseLibraryItem[]>>((acc, mg) => {
     acc[mg] = exerciseLibrary.filter((e) => e.muscleGroup === mg);
@@ -190,12 +197,22 @@ function ExerciseLibrarySection() {
 
   return (
     <div className="space-y-4">
-      <button
-        onClick={() => { setShowAddForm(true); setEditId(null); }}
-        className="w-full bg-blue-600 text-white py-2.5 rounded-xl text-sm font-medium flex items-center justify-center gap-2"
-      >
-        <Plus size={16} /> הוסף תרגיל לספרייה
-      </button>
+      <div className="flex gap-2">
+        <button
+          onClick={() => { setShowAddForm(true); setEditId(null); }}
+          className="flex-1 bg-blue-600 text-white py-2.5 rounded-xl text-sm font-medium flex items-center justify-center gap-2"
+        >
+          <Plus size={16} /> הוסף תרגיל
+        </button>
+        <button
+          onClick={handleImport}
+          className="flex-1 bg-gray-700 text-gray-200 py-2.5 rounded-xl text-sm font-medium"
+          title="ייבא תרגילים קיימים מהתוכניות"
+        >
+          ייבא מהתוכניות
+        </button>
+      </div>
+      {importMsg && <div className="text-center text-green-400 text-sm">{importMsg}</div>}
 
       {(showAddForm && !editId) && (
         <ExerciseForm
@@ -218,7 +235,7 @@ function ExerciseLibrarySection() {
                 onCancel={() => setEditId(null)}
               />
             ) : (
-              <ExerciseLibraryCard key={item.id} item={item} onEdit={() => setEditId(item.id)} onDelete={() => deleteExerciseLibraryItem(item.id)} />
+              <ExerciseLibraryCard key={item.id} item={item} apiKey={settings.workoutXApiKey} onEdit={() => setEditId(item.id)} onDelete={() => deleteExerciseLibraryItem(item.id)} />
             ))}
           </div>
         </div>
@@ -237,7 +254,7 @@ function ExerciseLibrarySection() {
                 onCancel={() => setEditId(null)}
               />
             ) : (
-              <ExerciseLibraryCard key={item.id} item={item} onEdit={() => setEditId(item.id)} onDelete={() => deleteExerciseLibraryItem(item.id)} />
+              <ExerciseLibraryCard key={item.id} item={item} apiKey={settings.workoutXApiKey} onEdit={() => setEditId(item.id)} onDelete={() => deleteExerciseLibraryItem(item.id)} />
             ))}
           </div>
         </div>
@@ -253,12 +270,44 @@ function ExerciseLibrarySection() {
   );
 }
 
-function ExerciseLibraryCard({ item, onEdit, onDelete }: { item: ExerciseLibraryItem; onEdit: () => void; onDelete: () => void }) {
+function ExerciseLibraryCard({
+  item, onEdit, onDelete, apiKey,
+}: {
+  item: ExerciseLibraryItem;
+  onEdit: () => void;
+  onDelete: () => void;
+  apiKey?: string;
+}) {
+  const { updateExerciseLibraryItem } = useStore();
   const [confirmDel, setConfirmDel] = useState(false);
+  const [fetching, setFetching] = useState(false);
+  const [fetchError, setFetchError] = useState('');
+
+  async function fetchGif() {
+    const query = item.nameHe ? item.name : item.name;
+    if (!apiKey) { setFetchError('נדרש API Key'); return; }
+    setFetching(true);
+    setFetchError('');
+    try {
+      const res = await fetch(`https://api.workoutxapp.com/v1/exercises?query=${encodeURIComponent(query)}`, {
+        headers: { 'X-WorkoutX-Key': apiKey },
+      });
+      if (!res.ok) throw new Error();
+      const data = await res.json();
+      const hit = Array.isArray(data) ? data[0] : data?.exercises?.[0];
+      if (!hit?.gifUrl) { setFetchError('לא נמצאה אנימציה'); return; }
+      updateExerciseLibraryItem(item.id, { gifUrl: hit.gifUrl });
+    } catch {
+      setFetchError('שגיאת חיבור');
+    } finally {
+      setFetching(false);
+    }
+  }
+
   return (
     <div className="bg-gray-900 rounded-xl p-3">
       <div className="flex items-start justify-between gap-2">
-        <div className="flex items-center gap-2">
+        <div className="flex flex-col gap-1.5">
           {confirmDel ? (
             <>
               <button onClick={onDelete} className="text-red-400 text-xs font-medium">מחק</button>
@@ -268,6 +317,11 @@ function ExerciseLibraryCard({ item, onEdit, onDelete }: { item: ExerciseLibrary
             <>
               <button onClick={() => setConfirmDel(true)} className="text-gray-600 active:text-red-400"><Trash2 size={14} /></button>
               <button onClick={onEdit} className="text-gray-500 active:text-gray-300"><Edit2 size={14} /></button>
+              {!item.gifUrl && (
+                <button onClick={fetchGif} disabled={fetching} className="text-gray-600 active:text-blue-400 disabled:opacity-40" title="שלוף אנימציה מ-WorkoutX">
+                  {fetching ? <Loader2 size={13} className="animate-spin" /> : <Search size={13} />}
+                </button>
+              )}
             </>
           )}
         </div>
@@ -278,9 +332,12 @@ function ExerciseLibraryCard({ item, onEdit, onDelete }: { item: ExerciseLibrary
           {item.equipment.length > 0 && (
             <div className="text-gray-600 text-xs mt-0.5">{item.equipment.map((e) => EQUIPMENT_LABELS[e]).join(' · ')}</div>
           )}
+          {fetchError && <div className="text-red-400 text-xs mt-1">{fetchError}</div>}
         </div>
-        {item.gifUrl && (
-          <img src={item.gifUrl} alt={item.name} className="w-12 h-12 rounded-lg object-cover bg-white shrink-0" />
+        {item.gifUrl ? (
+          <img src={item.gifUrl} alt={item.name} className="w-12 h-12 rounded-lg object-contain bg-white shrink-0" />
+        ) : (
+          <div className="w-12 h-12 rounded-lg bg-gray-800 shrink-0 flex items-center justify-center text-gray-600 text-xs">GIF</div>
         )}
       </div>
       {item.keyPoints && (

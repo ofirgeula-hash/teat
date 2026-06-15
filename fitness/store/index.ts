@@ -56,6 +56,7 @@ interface AppState {
   addExerciseLibraryItem: (item: ExerciseLibraryItem) => void;
   updateExerciseLibraryItem: (id: string, updates: Partial<ExerciseLibraryItem>) => void;
   deleteExerciseLibraryItem: (id: string) => void;
+  importExercisesFromPlans: () => number;
 }
 
 function s(reps: number, weight: number, rest: number): PlanSet {
@@ -370,6 +371,48 @@ export const useStore = create<AppState>()(
         })),
       deleteExerciseLibraryItem: (id) =>
         set((s) => ({ exerciseLibrary: s.exerciseLibrary.filter((e) => e.id !== id) })),
+
+      importExercisesFromPlans: () => {
+        const { locationPlans, exerciseLibrary } = get();
+        const existingNames = new Set(exerciseLibrary.map((e) => e.name));
+        const seen = new Set<string>();
+        const newItems: ExerciseLibraryItem[] = [];
+        const idMap: Record<string, string> = {};
+
+        locationPlans.forEach((plan) => {
+          plan.exercises.forEach((ex) => {
+            if (seen.has(ex.id)) return;
+            seen.add(ex.id);
+            if (existingNames.has(ex.name)) {
+              const existing = exerciseLibrary.find((e) => e.name === ex.name);
+              if (existing) idMap[ex.id] = existing.id;
+              return;
+            }
+            const libId = crypto.randomUUID();
+            idMap[ex.id] = libId;
+            newItems.push({
+              id: libId,
+              name: ex.name,
+              muscleGroup: ex.muscleGroup,
+              equipment: ex.equipment ?? [],
+            });
+            existingNames.add(ex.name);
+          });
+        });
+
+        const updatedPlans = locationPlans.map((plan) => ({
+          ...plan,
+          exercises: plan.exercises.map((ex) =>
+            idMap[ex.id] ? { ...ex, libraryId: idMap[ex.id] } : ex
+          ),
+        }));
+
+        set((s) => ({
+          exerciseLibrary: [...s.exerciseLibrary, ...newItems],
+          locationPlans: updatedPlans,
+        }));
+        return newItems.length;
+      },
     }),
     {
       name: 'fitness-store-v2',
