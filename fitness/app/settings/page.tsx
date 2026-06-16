@@ -4,6 +4,8 @@ import { useState } from 'react';
 import { Plus, Edit2, Check, X, Trash2, Search, Loader2 } from 'lucide-react';
 import type { ExerciseLibraryItem, MuscleGroup, EquipmentType } from '@/types';
 import { MUSCLE_GROUP_LABELS, EQUIPMENT_LABELS } from '@/types';
+import ExerciseListPicker from '@/components/ExerciseListPicker';
+import { EXERCISE_CATALOG } from '@/data/exerciseCatalog';
 
 type SettingsTab = 'כללי' | 'תרגילים';
 
@@ -182,11 +184,19 @@ function ExerciseLibrarySection() {
   const [showAddForm, setShowAddForm] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [importMsg, setImportMsg] = useState('');
+  const [showCatalogPicker, setShowCatalogPicker] = useState(false);
+  const [justAdded, setJustAdded] = useState<string | null>(null);
 
   function handleImport() {
     const count = importExercisesFromPlans();
     setImportMsg(count > 0 ? `יובאו ${count} תרגילים חדשים` : 'כל התרגילים כבר בספרייה');
     setTimeout(() => setImportMsg(''), 3000);
+  }
+
+  function addFromCatalog(item: (typeof EXERCISE_CATALOG)[number]) {
+    addExerciseLibraryItem({ ...item, id: crypto.randomUUID() });
+    setJustAdded(item.name);
+    setTimeout(() => setJustAdded((cur) => (cur === item.name ? null : cur)), 1500);
   }
 
   const grouped = ALL_MUSCLE_GROUPS.reduce<Record<MuscleGroup, ExerciseLibraryItem[]>>((acc, mg) => {
@@ -205,6 +215,13 @@ function ExerciseLibrarySection() {
           <Plus size={16} /> הוסף תרגיל
         </button>
         <button
+          onClick={() => setShowCatalogPicker(true)}
+          className="flex-1 bg-gray-700 text-gray-200 py-2.5 rounded-xl text-sm font-medium"
+          title="הוסף תרגיל מוכר מהקטלוג המובנה"
+        >
+          מהקטלוג
+        </button>
+        <button
           onClick={handleImport}
           className="flex-1 bg-gray-700 text-gray-200 py-2.5 rounded-xl text-sm font-medium"
           title="ייבא תרגילים קיימים מהתוכניות"
@@ -213,6 +230,22 @@ function ExerciseLibrarySection() {
         </button>
       </div>
       {importMsg && <div className="text-center text-green-400 text-sm">{importMsg}</div>}
+
+      {showCatalogPicker && (
+        <ExerciseListPicker
+          items={EXERCISE_CATALOG}
+          title="קטלוג תרגילים"
+          onSelect={addFromCatalog}
+          onClose={() => setShowCatalogPicker(false)}
+          renderBadge={(item) =>
+            justAdded === item.name ? (
+              <span className="text-green-400 text-xs">✓ נוסף</span>
+            ) : exerciseLibrary.some((e) => e.name === item.name) ? (
+              <span className="text-gray-500 text-xs">בספרייה</span>
+            ) : null
+          }
+        />
+      )}
 
       {(showAddForm && !editId) && (
         <ExerciseForm
