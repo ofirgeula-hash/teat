@@ -85,7 +85,7 @@ export default function ExerciseListPicker<T extends PickableExercise>({
   }
 
   return (
-    <div className="fixed inset-0 z-50 bg-gray-950/90 flex flex-col">
+    <div className="fixed inset-0 z-[60] bg-gray-950/90 safe-top flex flex-col">
       <div className="flex items-center justify-between p-4 border-b border-gray-800">
         <button onClick={onClose} className="text-gray-400"><X size={20} /></button>
         <span className="font-semibold text-white text-sm">{title}</span>
@@ -119,7 +119,7 @@ export default function ExerciseListPicker<T extends PickableExercise>({
           </div>
         )}
       </div>
-      <div className="flex-1 overflow-y-auto px-4 pb-8 space-y-4">
+      <div className="flex-1 overflow-y-auto px-4 pb-8 space-y-4 safe-bottom">
         {ALL_MUSCLE_GROUPS.map((mg) =>
           grouped[mg].length > 0 ? (
             <div key={mg}>

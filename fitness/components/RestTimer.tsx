@@ -31,7 +31,7 @@ export default function RestTimer({ seconds, onClose }: RestTimerProps) {
   };
 
   return (
-    <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4" onClick={onClose}>
+    <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-[60] p-4" onClick={onClose}>
       <div
         className="bg-gray-900 rounded-2xl p-8 flex flex-col items-center gap-6 w-72"
         onClick={(e) => e.stopPropagation()}
