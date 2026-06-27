@@ -326,6 +326,31 @@
       background: none; border: none; color: var(--muted);
       font-size: 16px; cursor: pointer; margin-right: auto; padding: 0 4px;
     }
+
+    /* ── Undo toast ── */
+    #undo-toast {
+      position: fixed;
+      left: 50%; bottom: calc(var(--safe-bot) + 18px);
+      transform: translateX(-50%) translateY(20px);
+      background: #233140; color: #fff;
+      padding: 12px 16px; border-radius: 12px;
+      display: flex; align-items: center; gap: 14px;
+      font-size: 14px; font-family: inherit;
+      box-shadow: 0 6px 20px rgba(0,0,0,.25);
+      opacity: 0; pointer-events: none;
+      transition: opacity .2s, transform .2s;
+      z-index: 50; max-width: calc(100% - 40px);
+    }
+    #undo-toast.visible {
+      opacity: 1; transform: translateX(-50%) translateY(0);
+      pointer-events: auto;
+    }
+    #undo-toast-msg { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    #undo-toast-btn {
+      background: none; border: none; color: #7fb3f0;
+      font-family: inherit; font-size: 14px; font-weight: 700;
+      cursor: pointer; flex-shrink: 0; padding: 0;
+    }
   </style>
 </head>
 <body>
@@ -393,6 +418,11 @@
     <button onclick="dismissHint()" aria-label="סגור">✕</button>
   </div>
 
+  <div id="undo-toast" role="status">
+    <span id="undo-toast-msg"></span>
+    <button id="undo-toast-btn">שחזר</button>
+  </div>
+
 </main>
 
 <script>
@@ -416,6 +446,11 @@
 
   const CACHE_KEY  = 'shopping-list-items';
   const STORES_KEY = 'shopping-list-stores';
+  const GRACE_MS   = 5000; // how long a freshly-checked item stays visible in "active" before sliding to "הושלם"
+  const UNDO_MS    = 5000; // how long an undo toast stays up before the deletion is committed
+
+  const graceTimers = new Map(); // item id -> timeout id, for the GRACE_MS delay above
+  const graceSet    = new Set(); // item ids currently within their grace window
 
   const listEl        = document.getElementById('list');
   const emptyEl       = document.getElementById('empty-state');
@@ -423,6 +458,36 @@
   const syncDot       = document.getElementById('sync-dot');
   const syncText      = document.getElementById('sync-text');
   const storeTabsEl   = document.getElementById('store-tabs');
+  const undoToastEl   = document.getElementById('undo-toast');
+  const undoMsgEl     = document.getElementById('undo-toast-msg');
+  const undoBtnEl     = document.getElementById('undo-toast-btn');
+
+  /* ── Undo toast: optimistic local change now, real delete deferred until the
+     window elapses (or committed early if another undo-able action starts) ── */
+  let pendingUndo = null; // { timer, onUndo, onCommit }
+
+  function hideToast() { undoToastEl.classList.remove('visible'); }
+
+  function showUndoToast(message, { onUndo, onCommit, duration = UNDO_MS }) {
+    if (pendingUndo) { clearTimeout(pendingUndo.timer); pendingUndo.onCommit(); }
+    undoMsgEl.textContent = message;
+    undoToastEl.classList.add('visible');
+    const timer = setTimeout(() => {
+      pendingUndo = null;
+      hideToast();
+      onCommit();
+    }, duration);
+    pendingUndo = { timer, onUndo, onCommit };
+  }
+
+  undoBtnEl.addEventListener('click', () => {
+    if (!pendingUndo) return;
+    clearTimeout(pendingUndo.timer);
+    const { onUndo } = pendingUndo;
+    pendingUndo = null;
+    hideToast();
+    onUndo();
+  });
 
   /* ── Sync status ── */
   function setSyncStatus(state) {
@@ -491,7 +556,7 @@
       x.setAttribute('aria-label', 'מחק חנות');
       x.addEventListener('click', e => {
         e.stopPropagation();
-        if (confirm('למחוק את "' + name + '"?')) deleteStore(id);
+        requestDeleteStore(id, name);
       });
       btn.appendChild(x);
     }
@@ -523,21 +588,39 @@
     } catch {}
   }
 
-  async function deleteStore(id) {
+  function requestDeleteStore(id, name) {
+    const store = stores.find(s => s.id === id);
+    if (!store) return;
+    const affected     = items.filter(i => i.storeId === id);
+    const wasSelected  = selectedStore === id;
+
     stores = stores.filter(s => s.id !== id);
-    const affected = items.filter(i => i.storeId === id);
     affected.forEach(i => { i.storeId = null; });
-    if (selectedStore === id) selectedStore = stores[0]?.id || 'all';
+    if (wasSelected) selectedStore = stores[0]?.id || 'all';
+    cacheLocally();
     renderStoreTabs();
     render();
-    try {
-      const batch = db.batch();
-      batch.delete(storesCol.doc(id));
-      affected.filter(i => !i.id.startsWith('tmp_'))
-              .forEach(i => batch.update(col.doc(i.id), { storeId: null }));
-      await batch.commit();
-      cacheLocally();
-    } catch {}
+
+    showUndoToast('החנות "' + name + '" נמחקה', {
+      onUndo: () => {
+        stores.push(store);
+        stores.sort((a, b) => a.order - b.order);
+        affected.forEach(i => { i.storeId = id; });
+        if (wasSelected) selectedStore = id;
+        cacheLocally();
+        renderStoreTabs();
+        render();
+      },
+      onCommit: async () => {
+        try {
+          const batch = db.batch();
+          batch.delete(storesCol.doc(id));
+          affected.filter(i => !i.id.startsWith('tmp_'))
+                  .forEach(i => batch.update(col.doc(i.id), { storeId: null }));
+          await batch.commit();
+        } catch {}
+      }
+    });
   }
 
   /* ── Add-store UI ── */
@@ -584,8 +667,14 @@
     inp.placeholder = 'הוסף פריט…';
     inp.addEventListener('keydown', e => {
       if (e.key === 'Enter') {
-        if (inp.value.trim()) {
-          addItem(inp.value); // addItem calls render() which recreates the list
+        const text = inp.value;
+        if (text.trim()) {
+          // clear the value BEFORE addItem()'s render() detaches this input: removing a
+          // focused element fires blur synchronously (and isConnected is still true at
+          // that instant), so the blur handler below would otherwise see the same
+          // non-empty value and resubmit it as a duplicate item.
+          inp.value = '';
+          addItem(text);
           // re-activate new add-row so keyboard stays open
           const newPh = listEl.querySelector('.add-row-placeholder');
           if (newPh) activateAddRow(newPh.closest('li'), newPh);
@@ -595,7 +684,8 @@
       }
     });
     inp.addEventListener('blur', () => {
-      if (inp.parentElement) { // still in DOM (not cleared by render())
+      if (inp.isConnected) { // still in the live document (render() detaches the whole <li>,
+        // but inp.parentElement would still point at that detached <li>, so check isConnected)
         if (inp.value.trim()) addItem(inp.value);
         else inp.replaceWith(ph);
       }
@@ -642,8 +732,10 @@
     let result = selectedStore === 'all'
       ? items
       : items.filter(i => i.storeId === selectedStore);
-    if (filter === 'active') return result.filter(i => !i.done);
-    if (filter === 'done')   return result.filter(i =>  i.done);
+    // items within their post-check grace window stay visible in "active" and
+    // are held back from "הושלם" until the window elapses (see toggle()).
+    if (filter === 'active') return result.filter(i => !i.done || graceSet.has(i.id));
+    if (filter === 'done')   return result.filter(i =>  i.done && !graceSet.has(i.id));
     return result;
   }
 
@@ -711,8 +803,14 @@
 
       const del = document.createElement('button');
       del.className = 'delete-btn'; del.innerHTML = '🗑';
-      del.setAttribute('aria-label', 'מחק');
-      del.addEventListener('click', () => remove(item.id));
+      del.setAttribute('aria-label', item.done ? 'מחק לצמיתות' : 'סמן כהושלם');
+      // In "active" this just marks the item done (same as the checkbox) so it
+      // can still be undone from "הושלם". Only deleting from "הושלם" itself
+      // is a real (undo-able) deletion.
+      del.addEventListener('click', () => {
+        if (item.done) requestDeleteItem(item.id);
+        else toggle(item.id);
+      });
       li.appendChild(del);
 
       listEl.appendChild(li);
@@ -740,41 +838,80 @@
   async function toggle(id) {
     const item = items.find(i => i.id === id);
     if (!item) return;
-    item.done = !item.done;
+    const turningDone = !item.done;
+    item.done = turningDone;
+
+    if (graceTimers.has(id)) {
+      clearTimeout(graceTimers.get(id));
+      graceTimers.delete(id);
+      graceSet.delete(id);
+    }
+    if (turningDone && filter === 'active') {
+      graceSet.add(id);
+      graceTimers.set(id, setTimeout(() => {
+        graceSet.delete(id);
+        graceTimers.delete(id);
+        render();
+      }, GRACE_MS));
+    }
+
     renderStoreTabs();
     render();
     try { await col.doc(id).update({ done: item.done }); cacheLocally(); } catch {}
   }
 
-  function remove(id) {
-    const filtered = getFiltered();
-    const idx = filtered.findIndex(i => i.id === id);
+  function requestDeleteItem(id) {
+    const idx = items.findIndex(i => i.id === id);
     if (idx === -1) return;
-    const li = listEl.querySelectorAll('li:not(.add-row)')[idx];
-    const doRemove = () => {
-      items = items.filter(i => i.id !== id);
-      cacheLocally();
-      renderStoreTabs();
-      render();
-      if (!id.startsWith('tmp_')) col.doc(id).delete().catch(() => {});
-    };
-    if (li) {
-      li.classList.add('removing');
-      li.addEventListener('animationend', doRemove, { once: true });
-    } else { doRemove(); }
-  }
+    const item = items[idx];
 
-  async function clearDone() {
-    const done = getFiltered().filter(i => i.done);
-    done.forEach(i => { items = items.filter(x => x.id !== i.id); });
+    items.splice(idx, 1);
     cacheLocally();
     renderStoreTabs();
     render();
-    try {
-      const batch = db.batch();
-      done.filter(i => !i.id.startsWith('tmp_')).forEach(i => batch.delete(col.doc(i.id)));
-      await batch.commit();
-    } catch {}
+
+    showUndoToast('הפריט "' + item.text + '" נמחק', {
+      onUndo: () => {
+        items.splice(idx, 0, item);
+        cacheLocally();
+        renderStoreTabs();
+        render();
+      },
+      onCommit: async () => {
+        if (!id.startsWith('tmp_')) {
+          try { await col.doc(id).delete(); } catch {}
+        }
+      }
+    });
+  }
+
+  function requestClearDone() {
+    const done = getFiltered().filter(i => i.done);
+    if (done.length === 0) return;
+    const removedIds = new Set(done.map(i => i.id));
+    items = items.filter(i => !removedIds.has(i.id));
+    cacheLocally();
+    renderStoreTabs();
+    render();
+
+    showUndoToast(
+      done.length === 1 ? 'פריט אחד נמחק' : done.length + ' פריטים נמחקו',
+      {
+        onUndo: () => {
+          items = items.concat(done).sort((a, b) => (b.order || 0) - (a.order || 0));
+          cacheLocally();
+          renderStoreTabs();
+          render();
+        },
+        onCommit: async () => {
+          try {
+            const batch = db.batch();
+            done.filter(i => !i.id.startsWith('tmp_')).forEach(i => batch.delete(col.doc(i.id)));
+            await batch.commit();
+          } catch {}
+        }
+      }
+    );
   }
 
   /* ── Refresh ── */
@@ -795,7 +932,7 @@
     });
   });
 
-  document.getElementById('clear-done').addEventListener('click', clearDone);
+  document.getElementById('clear-done').addEventListener('click', requestClearDone);
 
   /* ── iOS install hint ── */
   function isIOS()        { return /iphone|ipad|ipod/i.test(navigator.userAgent) && !window.MSStream; }
