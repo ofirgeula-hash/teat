@@ -6,10 +6,10 @@
   <meta name="theme-color" content="#f5f7fa" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-  <meta name="apple-mobile-web-app-title" content="קניות" />
+  <meta name="apple-mobile-web-app-title" content="קניות ומשימות" />
   <link rel="manifest" href="./manifest.json" />
   <link rel="apple-touch-icon" href="./apple-touch-icon.png" />
-  <title>רשימת קניות</title>
+  <title>קניות ומשימות</title>
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
   <style>
@@ -46,7 +46,6 @@
       height: 100dvh;
       max-width: 480px;
       margin: 0 auto;
-      padding-bottom: var(--safe-bot);
     }
 
     /* ── Top panel (add section) ── */
@@ -314,6 +313,23 @@
     #clear-done.visible { display: block; }
     #clear-done:active { color: var(--danger); border-color: var(--danger); }
 
+    /* ── Bottom nav (list switcher) ── */
+    .bottom-nav {
+      display: flex; gap: 6px;
+      padding: 6px 16px calc(8px + var(--safe-bot));
+      background: var(--surface);
+      border-top: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+    .nav-tab {
+      flex: 1; padding: 9px 4px;
+      border-radius: 10px; border: none;
+      background: none; color: var(--muted);
+      font-size: 13px; font-family: inherit; font-weight: 500;
+      cursor: pointer; transition: all .15s; text-align: center;
+    }
+    .nav-tab.active { background: var(--accent); color: #fff; font-weight: 700; }
+
     #install-hint {
       margin: 0 20px 10px;
       background: var(--surface); border: 1.5px solid var(--border);
@@ -330,7 +346,7 @@
     /* ── Undo toast ── */
     #undo-toast {
       position: fixed;
-      left: 50%; bottom: calc(var(--safe-bot) + 18px);
+      left: 50%; bottom: calc(56px + var(--safe-bot) + 14px);
       transform: translateX(-50%) translateY(20px);
       background: #233140; color: #fff;
       padding: 12px 16px; border-radius: 12px;
@@ -412,6 +428,12 @@
     <button id="clear-done">מחק פריטים שהושלמו</button>
   </div>
 
+  <nav class="bottom-nav" id="bottom-nav">
+    <button class="nav-tab active" data-tab="shopping">קניות</button>
+    <button class="nav-tab" data-tab="yarin">ירין</button>
+    <button class="nav-tab" data-tab="ofir">אופיר</button>
+  </nav>
+
   <div id="install-hint" role="complementary" style="display:none">
     <span class="hint-icon">📲</span>
     <span>להוספה למסך הבית: לחץ על <strong>שתף</strong> ← <strong>הוסף למסך הבית</strong></span>
@@ -443,6 +465,16 @@
   let stores        = [];
   let selectedStore = 'all';   // 'all' | store.id
   let filter        = 'active';
+
+  const TABS = [
+    { id: 'shopping', label: 'קניות', header: 'רשימת קניות'  },
+    { id: 'yarin',    label: 'ירין',   header: 'משימות ירין'  },
+    { id: 'ofir',     label: 'אופיר',  header: 'משימות אופיר' },
+  ];
+  const ACTIVE_TAB_KEY = 'shopping-list-active-tab';
+  let activeTab = TABS.some(t => t.id === localStorage.getItem(ACTIVE_TAB_KEY))
+    ? localStorage.getItem(ACTIVE_TAB_KEY)
+    : 'shopping';
 
   const CACHE_KEY  = 'shopping-list-items';
   const STORES_KEY = 'shopping-list-stores';
@@ -511,23 +543,27 @@
         col.orderBy('order', 'desc').get()
       ]);
       stores = storesSnap.docs.map(d => ({ id: d.id, ...d.data() }));
-      items  = itemsSnap.docs.map(d => ({ id: d.id, storeId: null, ...d.data() }));
+      items  = itemsSnap.docs.map(d => ({ id: d.id, storeId: null, listType: 'shopping', ...d.data() }));
       cacheLocally();
       setSyncStatus('synced');
     } catch {
       try { items  = JSON.parse(localStorage.getItem(CACHE_KEY))  || []; } catch { items  = []; }
       try { stores = JSON.parse(localStorage.getItem(STORES_KEY)) || []; } catch { stores = []; }
+      items.forEach(i => { if (!i.listType) i.listType = 'shopping'; });
       setSyncStatus('offline');
     }
     if (stores.length > 0 && selectedStore === 'all') selectedStore = stores[0].id;
+    updateShoppingOnlyUI();
+    updateHeader();
     renderStoreTabs();
     render();
   }
 
   /* ── Store tabs ── */
   function activeCount(storeId) {
-    if (storeId === 'all') return items.filter(i => !i.done).length;
-    return items.filter(i => i.storeId === storeId && !i.done).length;
+    const shoppingItems = items.filter(i => (i.listType || 'shopping') === 'shopping');
+    if (storeId === 'all') return shoppingItems.filter(i => !i.done).length;
+    return shoppingItems.filter(i => i.storeId === storeId && !i.done).length;
   }
 
   function renderStoreTabs() {
@@ -727,11 +763,37 @@
     inp.replaceWith(spanEl);
   }
 
+  /* ── Tabs ── */
+  function updateHeader() {
+    document.querySelector('.header-text h1').textContent =
+      (TABS.find(t => t.id === activeTab) || TABS[0]).header;
+  }
+
+  function updateShoppingOnlyUI() {
+    const isShopping = activeTab === 'shopping';
+    document.querySelector('.store-tabs-wrap').style.display    = isShopping ? '' : 'none';
+    document.querySelector('.add-store-section').style.display  = isShopping ? '' : 'none';
+  }
+
+  document.querySelectorAll('.nav-tab').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.tab === activeTab);
+    btn.addEventListener('click', () => {
+      activeTab = btn.dataset.tab;
+      localStorage.setItem(ACTIVE_TAB_KEY, activeTab);
+      document.querySelectorAll('.nav-tab').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      updateShoppingOnlyUI();
+      renderStoreTabs();
+      render();
+    });
+  });
+
   /* ── Render ── */
   function getFiltered() {
-    let result = selectedStore === 'all'
-      ? items
-      : items.filter(i => i.storeId === selectedStore);
+    let result = items.filter(i => (i.listType || 'shopping') === activeTab);
+    if (activeTab === 'shopping') {
+      result = selectedStore === 'all' ? result : result.filter(i => i.storeId === selectedStore);
+    }
     // items within their post-check grace window stay visible in "active" and
     // are held back from "הושלם" until the window elapses (see toggle()).
     if (filter === 'active') return result.filter(i => !i.done || graceSet.has(i.id));
@@ -740,6 +802,7 @@
   }
 
   function render() {
+    updateHeader();
     const filtered = getFiltered();
     clearDoneBtn.classList.toggle('visible', filtered.some(i => i.done));
     listEl.innerHTML = '';
@@ -781,7 +844,7 @@
 
       li.append(cb, span);
 
-      if (stores.length > 0) {
+      if (activeTab === 'shopping' && stores.length > 0) {
         const sel = document.createElement('select');
         sel.className = 'item-store-select';
         sel.setAttribute('aria-label', 'שייך לחנות');
@@ -821,14 +884,14 @@
   async function addItem(text) {
     text = text.trim();
     if (!text) return;
-    const storeId = selectedStore === 'all' ? null : selectedStore;
+    const storeId = (activeTab === 'shopping' && selectedStore !== 'all') ? selectedStore : null;
     const order   = Date.now();
     const tempId  = 'tmp_' + order;
-    items.unshift({ id: tempId, text, done: false, storeId, order });
+    items.unshift({ id: tempId, text, done: false, storeId, listType: activeTab, order });
     renderStoreTabs();
     render();
     try {
-      const ref = await col.add({ text, done: false, storeId, order });
+      const ref = await col.add({ text, done: false, storeId, listType: activeTab, order });
       const idx = items.findIndex(i => i.id === tempId);
       if (idx !== -1) items[idx].id = ref.id;
       cacheLocally();
