@@ -1010,7 +1010,16 @@
 
   /* ── Service Worker ── */
   if ('serviceWorker' in navigator) {
-    window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js').catch(() => {}));
+    window.addEventListener('load', async () => {
+      try {
+        const reg = await navigator.serviceWorker.register('./sw.js');
+        reg.update();
+        document.addEventListener('visibilitychange', () => {
+          if (document.visibilityState === 'visible') reg.update();
+        });
+      } catch {}
+    });
+    navigator.serviceWorker.addEventListener('controllerchange', () => location.reload());
   }
 
   init();
