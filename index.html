@@ -627,6 +627,7 @@
   function requestDeleteStore(id, name) {
     const store = stores.find(s => s.id === id);
     if (!store) return;
+    if (!confirm('למחוק את החנות "' + name + '"?')) return;
     const affected     = items.filter(i => i.storeId === id);
     const wasSelected  = selectedStore === id;
 
