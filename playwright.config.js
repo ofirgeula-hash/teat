@@ -5,6 +5,7 @@ module.exports = defineConfig({
   timeout: 15000,
   use: {
     baseURL: 'http://localhost:4173',
+    serviceWorkers: 'block',
     launchOptions: {
       executablePath: '/opt/pw-browsers/chromium_headless_shell-1194/chrome-linux/headless_shell',
       args: ['--no-sandbox', '--disable-setuid-sandbox'],
