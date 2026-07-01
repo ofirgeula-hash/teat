@@ -12,6 +12,7 @@
   <title>קניות ומשימות</title>
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-messaging-compat.js"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -367,6 +368,130 @@
       font-family: inherit; font-size: 14px; font-weight: 700;
       cursor: pointer; flex-shrink: 0; padding: 0;
     }
+
+    /* ── Settings button ── */
+    #settings-btn {
+      background: none;
+      border: 1px solid var(--border);
+      color: var(--muted);
+      font-size: 17px;
+      width: 36px; height: 36px;
+      border-radius: 10px;
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      transition: all 0.15s; flex-shrink: 0;
+    }
+    #settings-btn:active { color: var(--accent); border-color: var(--accent); }
+    #settings-btn.notify-active { color: var(--accent); border-color: var(--accent); }
+
+    /* ── Settings overlay ── */
+    .settings-overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,.4);
+      z-index: 100; opacity: 0; pointer-events: none;
+      transition: opacity .25s;
+    }
+    .settings-overlay.open { opacity: 1; pointer-events: auto; }
+
+    /* ── Settings panel (bottom sheet) ── */
+    .settings-panel {
+      position: fixed; bottom: 0; left: 50%;
+      transform: translateX(-50%) translateY(105%);
+      width: 100%; max-width: 480px;
+      background: var(--surface);
+      border-radius: 24px 24px 0 0;
+      padding-bottom: calc(20px + var(--safe-bot));
+      z-index: 101;
+      transition: transform .3s cubic-bezier(.32,0,.67,0);
+      max-height: 88dvh; overflow-y: auto;
+    }
+    .settings-panel.open { transform: translateX(-50%) translateY(0); }
+
+    .settings-handle {
+      width: 36px; height: 4px; border-radius: 2px;
+      background: var(--border); margin: 12px auto 0;
+    }
+    .settings-header {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 14px 20px 12px;
+      border-bottom: 1px solid var(--border);
+    }
+    .settings-header h2 { font-size: 17px; font-weight: 700; color: var(--text); }
+    .settings-close {
+      background: none; border: none; color: var(--muted);
+      font-size: 22px; cursor: pointer; padding: 0 4px; line-height: 1;
+    }
+
+    .settings-body { padding: 20px 20px 0; display: flex; flex-direction: column; gap: 22px; }
+    .settings-section {}
+    .section-label {
+      display: block; font-size: 11px; font-weight: 700;
+      color: var(--muted); text-transform: uppercase; letter-spacing: .6px;
+      margin-bottom: 8px;
+    }
+
+    .user-selector { display: flex; gap: 8px; }
+    .user-btn {
+      flex: 1; padding: 11px 4px;
+      border-radius: 10px; border: 1.5px solid var(--border);
+      background: var(--surface2); color: var(--muted);
+      font-size: 15px; font-family: inherit; font-weight: 500;
+      cursor: pointer; transition: all .15s; text-align: center;
+    }
+    .user-btn.sel { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 700; }
+
+    .time-input {
+      width: 100%; padding: 11px 14px;
+      border: 1.5px solid var(--border); border-radius: var(--radius);
+      background: var(--surface2);
+      font-size: 20px; font-family: inherit; color: var(--text);
+      direction: ltr; text-align: center;
+    }
+    .time-input:focus { border-color: var(--accent); outline: none; }
+
+    .day-selector { display: flex; gap: 5px; }
+    .day-btn {
+      flex: 1; padding: 9px 0;
+      border-radius: 8px; border: 1.5px solid var(--border);
+      background: var(--surface2); color: var(--muted);
+      font-size: 12px; font-family: inherit; font-weight: 500;
+      cursor: pointer; transition: all .15s; text-align: center;
+    }
+    .day-btn.sel { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 700; }
+
+    .toggle-row {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 2px 0;
+    }
+    .toggle-row .toggle-label { font-size: 15px; color: var(--text); }
+    .toggle {
+      appearance: none; -webkit-appearance: none;
+      width: 46px; height: 27px; border-radius: 14px;
+      background: var(--border); transition: background .2s; cursor: pointer;
+      position: relative; flex-shrink: 0;
+    }
+    .toggle:checked { background: var(--accent); }
+    .toggle::after {
+      content: ''; position: absolute;
+      top: 3px; right: 3px;
+      width: 21px; height: 21px; border-radius: 50%;
+      background: #fff; transition: transform .2s;
+      box-shadow: 0 1px 3px rgba(0,0,0,.25);
+    }
+    .toggle:checked::after { transform: translateX(-19px); }
+
+    #notify-action-btn {
+      width: 100%; padding: 14px;
+      background: var(--accent); color: #fff;
+      border: none; border-radius: var(--radius);
+      font-size: 16px; font-family: inherit; font-weight: 700;
+      cursor: pointer; transition: opacity .15s;
+    }
+    #notify-action-btn:active { opacity: .8; }
+    #notify-action-btn:disabled { opacity: .5; cursor: default; }
+
+    #notify-status-msg {
+      text-align: center; font-size: 13px; color: var(--muted); min-height: 18px;
+    }
   </style>
 </head>
 <body>
@@ -384,6 +509,7 @@
           <span class="sync-text" id="sync-text">מתחבר…</span>
         </div>
       </div>
+      <button id="settings-btn" aria-label="הגדרות">⚙️</button>
       <button id="refresh-btn" aria-label="רענן">↻</button>
     </header>
 
@@ -443,6 +569,55 @@
   <div id="undo-toast" role="status">
     <span id="undo-toast-msg"></span>
     <button id="undo-toast-btn">שחזר</button>
+  </div>
+
+  <!-- ═══ Settings overlay + panel ═══ -->
+  <div class="settings-overlay" id="settings-overlay"></div>
+  <div class="settings-panel" id="settings-panel" role="dialog" aria-modal="true" aria-label="הגדרות התראות">
+    <div class="settings-handle"></div>
+    <div class="settings-header">
+      <h2>הגדרות התראות 🔔</h2>
+      <button class="settings-close" id="settings-close" aria-label="סגור">✕</button>
+    </div>
+    <div class="settings-body">
+
+      <div class="settings-section">
+        <label class="section-label">מי אתה?</label>
+        <div class="user-selector">
+          <button class="user-btn" data-user="ofir">אופיר</button>
+          <button class="user-btn" data-user="yarin">ירין</button>
+        </div>
+      </div>
+
+      <div class="settings-section">
+        <label class="section-label" for="notify-time">שעת התראה יומית</label>
+        <input type="time" id="notify-time" class="time-input" value="08:00">
+      </div>
+
+      <div class="settings-section">
+        <label class="section-label">ימי שליחה</label>
+        <div class="day-selector">
+          <button class="day-btn sel" data-day="0">א׳</button>
+          <button class="day-btn sel" data-day="1">ב׳</button>
+          <button class="day-btn sel" data-day="2">ג׳</button>
+          <button class="day-btn sel" data-day="3">ד׳</button>
+          <button class="day-btn sel" data-day="4">ה׳</button>
+          <button class="day-btn"     data-day="5">ו׳</button>
+          <button class="day-btn"     data-day="6">ש׳</button>
+        </div>
+      </div>
+
+      <div class="settings-section">
+        <div class="toggle-row">
+          <span class="toggle-label">שלח גם אם אין משימות</span>
+          <input type="checkbox" class="toggle" id="notify-if-empty">
+        </div>
+      </div>
+
+      <button id="notify-action-btn">🔔 הפעל התראות</button>
+      <p id="notify-status-msg"></p>
+
+    </div>
   </div>
 
 </main>
@@ -1008,6 +1183,110 @@
   if (isIOS() && !isStandalone() && !localStorage.getItem('install-hint-dismissed')) {
     document.getElementById('install-hint').style.display = 'flex';
   }
+
+  /* ── Push notifications / settings ── */
+  const VAPID_KEY   = 'BJ142axl4u4rFWD1zs1ZSNResPTxcYXWuO4Cv_hlibh45kCjYT7_KoC1MBkp1hvYmE-kWXXHlo2cTT-SCiwJfW4';
+  const devicesCol  = db.collection('devices');
+  const NOTIFY_KEY  = 'notify-settings-v1';
+
+  let notifySettings = {
+    userId:        null,
+    notifyTime:    '08:00',
+    notifyDays:    [0, 1, 2, 3, 4],
+    notifyIfEmpty: false,
+    notifyEnabled: false,
+  };
+  let savedFcmToken = localStorage.getItem('fcm-token') || null;
+
+  function openSettings() {
+    syncUIFromSettings();
+    document.getElementById('settings-overlay').classList.add('open');
+    document.getElementById('settings-panel').classList.add('open');
+  }
+  function closeSettings() {
+    document.getElementById('settings-overlay').classList.remove('open');
+    document.getElementById('settings-panel').classList.remove('open');
+  }
+
+  function syncUIFromSettings() {
+    const raw = localStorage.getItem(NOTIFY_KEY);
+    if (raw) { try { Object.assign(notifySettings, JSON.parse(raw)); } catch {} }
+
+    document.querySelectorAll('.user-btn').forEach(b =>
+      b.classList.toggle('sel', b.dataset.user === notifySettings.userId));
+    document.getElementById('notify-time').value = notifySettings.notifyTime;
+    document.querySelectorAll('.day-btn').forEach(b =>
+      b.classList.toggle('sel', notifySettings.notifyDays.includes(+b.dataset.day)));
+    document.getElementById('notify-if-empty').checked = notifySettings.notifyIfEmpty;
+
+    const active = notifySettings.notifyEnabled && savedFcmToken;
+    document.getElementById('notify-action-btn').textContent =
+      active ? '✅ עדכן הגדרות' : '🔔 הפעל התראות';
+    document.getElementById('notify-status-msg').textContent =
+      active ? 'התראות פעילות על המכשיר הזה' : '';
+    document.getElementById('settings-btn').classList.toggle('notify-active', !!active);
+  }
+
+  function collectUISettings() {
+    return {
+      userId:        document.querySelector('.user-btn.sel')?.dataset.user || null,
+      notifyTime:    document.getElementById('notify-time').value || '08:00',
+      notifyDays:    [...document.querySelectorAll('.day-btn.sel')].map(b => +b.dataset.day),
+      notifyIfEmpty: document.getElementById('notify-if-empty').checked,
+    };
+  }
+
+  async function activateNotifications() {
+    const ui = collectUISettings();
+    const statusEl = document.getElementById('notify-status-msg');
+    const btn      = document.getElementById('notify-action-btn');
+
+    if (!ui.userId) { statusEl.textContent = 'נא לבחור מי אתה (אופיר / ירין)'; return; }
+    if (!ui.notifyDays.length) { statusEl.textContent = 'נא לבחור לפחות יום אחד'; return; }
+
+    btn.disabled = true;
+    statusEl.textContent = 'מבקש הרשאה…';
+
+    try {
+      const perm = await Notification.requestPermission();
+      if (perm !== 'granted') {
+        statusEl.textContent = 'ההרשאה נדחתה — אפשר התראות בהגדרות הטלפון';
+        btn.disabled = false; return;
+      }
+
+      statusEl.textContent = 'מתחבר…';
+      const messaging = firebase.messaging();
+      const token = await messaging.getToken({ vapidKey: VAPID_KEY });
+      if (!token) throw new Error('לא התקבל טוקן — נסה שוב');
+
+      const data = { ...ui, notifyEnabled: true, updatedAt: firebase.firestore.FieldValue.serverTimestamp() };
+      await devicesCol.doc(token).set(data);
+
+      savedFcmToken = token;
+      localStorage.setItem('fcm-token', token);
+      Object.assign(notifySettings, ui, { notifyEnabled: true });
+      localStorage.setItem(NOTIFY_KEY, JSON.stringify(notifySettings));
+
+      statusEl.textContent = 'התראות הופעלו בהצלחה ✅';
+      document.getElementById('notify-action-btn').textContent = '✅ עדכן הגדרות';
+      document.getElementById('settings-btn').classList.add('notify-active');
+    } catch (e) {
+      console.error(e);
+      statusEl.textContent = 'שגיאה: ' + e.message;
+    }
+    btn.disabled = false;
+  }
+
+  document.getElementById('settings-btn').addEventListener('click', openSettings);
+  document.getElementById('settings-close').addEventListener('click', closeSettings);
+  document.getElementById('settings-overlay').addEventListener('click', closeSettings);
+  document.querySelectorAll('.user-btn').forEach(b => b.addEventListener('click', () => {
+    document.querySelectorAll('.user-btn').forEach(x => x.classList.remove('sel'));
+    b.classList.add('sel');
+  }));
+  document.querySelectorAll('.day-btn').forEach(b =>
+    b.addEventListener('click', () => b.classList.toggle('sel')));
+  document.getElementById('notify-action-btn').addEventListener('click', activateNotifications);
 
   /* ── Service Worker ── */
   if ('serviceWorker' in navigator) {
