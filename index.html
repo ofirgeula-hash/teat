@@ -1256,7 +1256,8 @@
 
       statusEl.textContent = 'מתחבר…';
       const messaging = firebase.messaging();
-      const token = await messaging.getToken({ vapidKey: VAPID_KEY });
+      const swReg = await navigator.serviceWorker.register('./firebase-messaging-sw.js');
+      const token = await messaging.getToken({ vapidKey: VAPID_KEY, serviceWorkerRegistration: swReg });
       if (!token) throw new Error('לא התקבל טוקן — נסה שוב');
 
       const data = { ...ui, notifyEnabled: true, updatedAt: firebase.firestore.FieldValue.serverTimestamp() };
