@@ -155,22 +155,28 @@ exports.sendDailyNotifications = onSchedule(
       const targetMinutes = h * 60 + m;
       if (Math.abs(currentMinutes - targetMinutes) >= 15) continue;
 
-      // Count open tasks for this user
+      // Fetch urgent (priority) items: personal + shared shopping list
       const userId = device.userId; // 'ofir' | 'yarin'
       if (!userId) continue;
 
-      const itemsSnap = await db.collection('items')
-        .where('listType', '==', userId)
-        .get();
+      const [personalSnap, shoppingSnap] = await Promise.all([
+        db.collection('items').where('listType', '==', userId).where('urgent', '==', true).get(),
+        db.collection('items').where('listType', '==', 'shopping').where('urgent', '==', true).get(),
+      ]);
 
-      const openCount = itemsSnap.docs.filter(d => !d.data().done).length;
-      if (openCount === 0 && !device.notifyIfEmpty) continue;
+      const urgentItems = [
+        ...personalSnap.docs.filter(d => !d.data().done),
+        ...shoppingSnap.docs.filter(d => !d.data().done),
+      ];
+      if (urgentItems.length === 0) continue;
 
+      const MAX_NAMES = 3;
+      const names = urgentItems.map(d => d.data().text);
       const name  = userId === 'ofir' ? 'אופיר' : 'ירין';
-      const title = `משימות ${name} 📋`;
-      const body  = openCount === 0
-        ? 'כל המשימות הושלמו ✅'
-        : `יש ${openCount} משימ${openCount === 1 ? 'ה' : 'ות'} פתוח${openCount === 1 ? 'ה' : 'ות'}`;
+      const title = `משימות דחופות ${name} ⚡`;
+      const body  = names.length <= MAX_NAMES
+        ? names.join(', ')
+        : names.slice(0, MAX_NAMES).join(', ') + ` ועוד ${names.length - MAX_NAMES}`;
 
       try {
         await messaging.send({
