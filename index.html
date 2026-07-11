@@ -248,6 +248,7 @@
       opacity: 0; transition: opacity .2s;
     }
     li:has(.checkbox:checked)::before { background: var(--success); opacity: 1; }
+    li:has(.urgent-btn.on)::before    { background: var(--danger);  opacity: 1; }
 
     @keyframes slideIn { from{opacity:0;transform:translateY(-8px)} to{opacity:1;transform:translateY(0)} }
     li.removing { animation: slideOut .2s ease forwards; }
@@ -492,6 +493,15 @@
     #notify-status-msg {
       text-align: center; font-size: 13px; color: var(--muted); min-height: 18px;
     }
+
+    /* ── Urgent / priority button ── */
+    .urgent-btn {
+      background: none; border: 1.5px solid var(--border);
+      color: var(--muted); font-size: 13px; font-weight: 800;
+      width: 26px; height: 26px; border-radius: 8px;
+      cursor: pointer; flex-shrink: 0; transition: all .15s; line-height: 1;
+    }
+    .urgent-btn.on { background: #fff0f0; border-color: var(--danger); color: var(--danger); }
   </style>
 </head>
 <body>
@@ -718,7 +728,7 @@
         col.orderBy('order', 'desc').get()
       ]);
       stores = storesSnap.docs.map(d => ({ id: d.id, ...d.data() }));
-      items  = itemsSnap.docs.map(d => ({ id: d.id, storeId: null, listType: 'shopping', ...d.data() }));
+      items  = itemsSnap.docs.map(d => ({ id: d.id, storeId: null, listType: 'shopping', urgent: false, ...d.data() }));
       cacheLocally();
       setSyncStatus('synced');
     } catch {
@@ -1020,6 +1030,13 @@
 
       li.append(cb, span);
 
+      const urgBtn = document.createElement('button');
+      urgBtn.className = 'urgent-btn' + (item.urgent ? ' on' : '');
+      urgBtn.textContent = '!';
+      urgBtn.setAttribute('aria-label', item.urgent ? 'בטל עדיפות' : 'סמן דחוף');
+      urgBtn.addEventListener('click', () => toggleUrgent(item.id));
+      li.appendChild(urgBtn);
+
       if (activeTab === 'shopping' && stores.length > 0) {
         const sel = document.createElement('select');
         sel.className = 'item-store-select';
@@ -1063,11 +1080,11 @@
     const storeId = (activeTab === 'shopping' && selectedStore !== 'all') ? selectedStore : null;
     const order   = Date.now();
     const tempId  = 'tmp_' + order;
-    items.unshift({ id: tempId, text, done: false, storeId, listType: activeTab, order });
+    items.unshift({ id: tempId, text, done: false, urgent: false, storeId, listType: activeTab, order });
     renderStoreTabs();
     render();
     try {
-      const ref = await col.add({ text, done: false, storeId, listType: activeTab, order });
+      const ref = await col.add({ text, done: false, urgent: false, storeId, listType: activeTab, order });
       const idx = items.findIndex(i => i.id === tempId);
       if (idx !== -1) items[idx].id = ref.id;
       cacheLocally();
@@ -1097,6 +1114,17 @@
     renderStoreTabs();
     render();
     try { await col.doc(id).update({ done: item.done }); cacheLocally(); } catch {}
+  }
+
+  async function toggleUrgent(id) {
+    const item = items.find(i => i.id === id);
+    if (!item) return;
+    item.urgent = !item.urgent;
+    cacheLocally();
+    render();
+    if (!id.startsWith('tmp_')) {
+      try { await col.doc(id).update({ urgent: item.urgent }); } catch {}
+    }
   }
 
   function requestDeleteItem(id) {
