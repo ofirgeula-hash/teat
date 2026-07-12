@@ -150,7 +150,7 @@ exports.sendDailyNotifications = onSchedule(
       const notifyDays = Array.isArray(device.notifyDays) ? device.notifyDays : [0,1,2,3,4,5,6];
       if (!notifyDays.includes(currentDay)) continue;
 
-      // Time window: ±15 min of target
+      // Time window: ±7 min of target (function runs every 15 min; 7 min avoids double-fire)
       const [h, m] = (device.notifyTime || '08:00').split(':').map(Number);
       const targetMinutes = h * 60 + m;
       if (Math.abs(currentMinutes - targetMinutes) >= 7) continue;
