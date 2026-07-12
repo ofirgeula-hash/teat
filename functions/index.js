@@ -153,7 +153,7 @@ exports.sendDailyNotifications = onSchedule(
       // Time window: ±15 min of target
       const [h, m] = (device.notifyTime || '08:00').split(':').map(Number);
       const targetMinutes = h * 60 + m;
-      if (Math.abs(currentMinutes - targetMinutes) >= 15) continue;
+      if (Math.abs(currentMinutes - targetMinutes) >= 7) continue;
 
       // Fetch urgent (priority) items: personal + shared shopping list
       const userId = device.userId; // 'ofir' | 'yarin'
