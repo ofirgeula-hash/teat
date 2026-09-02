@@ -15,6 +15,9 @@ const OUT = process.argv[2] || 'task-report.html';
 const TZ = 'Asia/Jerusalem';
 const RECENT_DAYS = 2; // window for the "completed recently" section
 
+// Stores whose items Ofir does not want in the report at all — not listed, not counted.
+const EXCLUDED_STORE_NAMES = ['ירקות', 'רשימה קבועה לסופר'];
+
 const LISTS = [
   { id: 'ofir', title: 'משימות אופיר' },
   { id: 'yarin', title: 'משימות ירין' },
@@ -164,7 +167,14 @@ function build(items, stores) {
 </html>`;
 }
 
-const [items, stores] = await Promise.all([fetchCollection('items'), fetchCollection('stores')]);
+const [allItems, allStores] = await Promise.all([fetchCollection('items'), fetchCollection('stores')]);
+
+const excludedStoreIds = new Set(
+  allStores.filter(s => EXCLUDED_STORE_NAMES.includes(s.name)).map(s => s.id)
+);
+const stores = allStores.filter(s => !excludedStoreIds.has(s.id));
+const items = allItems.filter(i => !excludedStoreIds.has(i.storeId));
+
 const html = build(items, stores);
 await (await import('node:fs/promises')).writeFile(OUT, html, 'utf8');
 
