@@ -15,9 +15,7 @@ Send Ofir the "קניות ומשימות" summary report by email. Do the whole 
 do not ask any questions.
 
 **If you can run shell commands** (a Claude Code session with the `teat` repo):
-1. `cd` into the `teat` checkout, then
-   `git fetch origin claude/shopping-tasks-project-i1crls && git checkout claude/shopping-tasks-project-i1crls`
-   (if that branch is gone, the script is already on the default branch).
+1. `cd` into the `teat` checkout — `scripts/task-report.mjs` is on the default branch.
 2. `node scripts/task-report.mjs /tmp/task-report.html` — the one line it prints on stdout
    is the email subject; use it verbatim.
 3. `cat /tmp/task-report.html` and send that HTML unchanged.
