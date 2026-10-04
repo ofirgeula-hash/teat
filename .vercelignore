@@ -1,8 +1,0 @@
-tests
-test-results
-playwright.config.js
-node_modules
-functions
-firebase.json
-.firebaserc
-firebase-messaging-sw.js

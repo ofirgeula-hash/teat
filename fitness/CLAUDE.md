@@ -69,7 +69,7 @@ for any library item, but the catalog itself never depends on that API.
 ## Git workflow (mandatory)
 After every task: build → commit → push → open PR → squash-merge to main. Do all steps automatically without asking. Never leave work unmerged.
 
-## Vercel build settings (monorepo override)
-- Build Command: `cd fitness && npm run build`
-- Output Directory: `fitness/.next`
-- Install Command: `cd fitness && npm install`
+## Vercel build settings
+- The Vercel project's Root Directory is `fitness/`; the Next.js preset runs `npm install` and `next build` here.
+- All Vercel config belongs in `fitness/vercel.json` — never at the repo root (see the root `CLAUDE.md`).
+- `ignoreCommand` skips builds for commits that don't change `fitness/`.
