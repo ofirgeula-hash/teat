@@ -5,15 +5,16 @@ import type { WorkoutSession, WorkoutType } from '@/types';
 import { Weight, Plus, Edit2, Check, X, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 
-function weeklyCount(sessions: WorkoutSession[]) {
-  const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+function weeklyCount(sessions: WorkoutSession[], now: number) {
+  const weekAgo = new Date(now - 7 * 24 * 60 * 60 * 1000);
   return sessions.filter((s) => new Date(s.startedAt) > weekAgo && s.endedAt).length;
 }
 
 export default function HomePage() {
   const { workoutTypes, sessions, addWorkoutType } = useStore();
   const router = useRouter();
-  const count = weeklyCount(sessions);
+  const [now] = useState(() => Date.now());
+  const count = weeklyCount(sessions, now);
   const [showAddWt, setShowAddWt] = useState(false);
   const [newWtName, setNewWtName] = useState('');
   const [newWtEmoji, setNewWtEmoji] = useState('🏋️');
@@ -47,7 +48,7 @@ export default function HomePage() {
           {workoutTypes.map((wt) => {
             const lastSession = sessions.find((s) => s.workoutTypeId === wt.id && s.endedAt);
             const daysAgo = lastSession
-              ? Math.floor((Date.now() - new Date(lastSession.startedAt).getTime()) / 86400000)
+              ? Math.floor((now - new Date(lastSession.startedAt).getTime()) / 86400000)
               : null;
             return (
               <WorkoutCard

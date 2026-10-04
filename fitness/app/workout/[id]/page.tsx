@@ -65,11 +65,14 @@ export default function WorkoutPage() {
   const [inlineNotes, setInlineNotes] = useState<string[]>([]);
   const [newLocName, setNewLocName] = useState('');
 
+  // Runs client-side after the persisted store is available, so it can't be a
+  // lazy useState initializer without a server/client hydration mismatch.
   useEffect(() => {
     const state = useStore.getState();
 
     if (state.activeSession?.workoutTypeId === id) {
       const locId = state.activeSession.locationId;
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setSelectedLocationId(locId);
       const plan = state.locationPlans.find(
         (p) => p.locationId === locId && p.workoutTypeId === id
@@ -91,7 +94,7 @@ export default function WorkoutPage() {
         initEquipment(plan.exercises);
       }
     }
-  }, [id]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [id]);
 
   function initEquipment(exercises: PlanExercise[]) {
     setActiveEquipment((prev) => {
@@ -690,7 +693,8 @@ export default function WorkoutPage() {
                     onClick={() =>
                       setExpandedEx((prev) => {
                         const next = new Set(prev);
-                        next.has(ex.id) ? next.delete(ex.id) : next.add(ex.id);
+                        if (next.has(ex.id)) next.delete(ex.id);
+                        else next.add(ex.id);
                         return next;
                       })
                     }

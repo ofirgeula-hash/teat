@@ -73,7 +73,7 @@ export default function InsightsPage() {
         <div className="text-center py-16 text-gray-500">
           <div className="text-4xl mb-3">📓</div>
           <div className="text-sm">אין תובנות עדיין</div>
-          <div className="text-xs mt-1">לחץ על "פתק חדש" כדי להתחיל</div>
+          <div className="text-xs mt-1">לחץ על &quot;פתק חדש&quot; כדי להתחיל</div>
         </div>
       )}
 
