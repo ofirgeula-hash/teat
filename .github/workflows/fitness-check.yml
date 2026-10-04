@@ -1,0 +1,49 @@
+name: Fitness app check
+
+on:
+  pull_request:
+    paths:
+      - 'fitness/**'
+      - 'vercel.json'
+      - '.vercelignore'
+      - '.github/workflows/fitness-check.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'fitness/**'
+      - 'vercel.json'
+      - '.vercelignore'
+      - '.github/workflows/fitness-check.yml'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # The Vercel project's root directory is fitness/, but Vercel still reads a
+      # .vercelignore and vercel.json from the repo root. Config there has broken
+      # the fitness deploy before (#25, #37), so all Vercel config lives in
+      # fitness/vercel.json.
+      - name: No Vercel config at the repo root
+        run: |
+          for f in vercel.json .vercelignore; do
+            if [ -e "$f" ]; then
+              echo "::error file=$f::Vercel config at the repo root affects the fitness deploy. Put it in fitness/vercel.json instead."
+              exit 1
+            fi
+          done
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: 'npm'
+          cache-dependency-path: fitness/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+        working-directory: fitness
+
+      - name: Build
+        run: npm run build
+        working-directory: fitness
