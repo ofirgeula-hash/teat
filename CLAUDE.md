@@ -20,3 +20,8 @@
 - The shopping list has no Vercel project. If one is ever added, give it its own root
   directory rather than sharing the repo root config.
 - Fitness-specific context lives in `fitness/CLAUDE.md`.
+
+## Skills
+`.claude/skills/` holds UI/animation design skills copied from
+[emilkowalski/skills](https://github.com/emilkowalski/skills) (MIT, see
+`EMIL-SKILLS-LICENSE`). Swift, Expo and Sonner skills were left out as irrelevant here.
