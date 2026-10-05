@@ -98,6 +98,7 @@ export interface BodyWeightLog {
 
 export interface AppSettings {
   defaultRestSeconds: number;
+  weeklyGoal?: number;
   workoutXApiKey?: string;
 }
 

@@ -30,7 +30,7 @@ export default function AnalyticsPage() {
             key={t}
             onClick={() => setTab(t)}
             className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
-              tab === t ? 'bg-blue-600 text-white' : 'bg-gray-800 text-gray-400'
+              tab === t ? 'bg-accent text-ink' : 'bg-surface-2 text-muted'
             }`}
           >
             {t === 'משקל_גוף' ? 'משקל גוף' : t}
@@ -60,15 +60,19 @@ function VolumeChart() {
 
   const currentEx = selectedEx || uniqueExNames[0] || '';
 
+  // Sessions are stored newest first; chart the 20 most recent, oldest to newest.
   const data = sessions
     .filter((s) => s.endedAt && s.sets.some((st) => st.exerciseName === currentEx))
-    .map((s) => ({
-      date: new Date(s.startedAt).toLocaleDateString('he-IL', { day: 'numeric', month: 'numeric' }),
-      נפח: s.sets
-        .filter((st) => st.exerciseName === currentEx)
-        .reduce((sum, st) => sum + st.weight * st.reps, 0),
-    }))
-    .slice(-20);
+    .sort((a, b) => a.startedAt.localeCompare(b.startedAt))
+    .slice(-20)
+    .map((s) => {
+      const exSets = s.sets.filter((st) => st.exerciseName === currentEx);
+      return {
+        date: new Date(s.startedAt).toLocaleDateString('he-IL', { day: 'numeric', month: 'numeric' }),
+        נפח: exSets.reduce((sum, st) => sum + st.weight * st.reps, 0),
+        משקל: Math.max(...exSets.map((st) => st.weight)),
+      };
+    });
 
   if (!uniqueExNames.length) {
     return <EmptyState message="אין נתונים עדיין. השלם כמה אימונים!" />;
@@ -79,7 +83,7 @@ function VolumeChart() {
       <select
         value={currentEx}
         onChange={(e) => setSelectedEx(e.target.value)}
-        className="w-full bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-white text-sm"
+        className="w-full bg-surface-2 border border-line rounded-lg px-3 py-2 text-white text-sm"
       >
         {uniqueExNames.map((name) => (
           <option key={name} value={name}>
@@ -87,19 +91,35 @@ function VolumeChart() {
           </option>
         ))}
       </select>
-      <div className="bg-gray-900 rounded-xl p-4">
-        <div className="text-sm text-gray-400 mb-3">נפח לאורך זמן (ק״ג × חזרות)</div>
+      <div className="bg-surface rounded-xl p-4">
+        <div className="text-sm text-muted mb-3">נפח לאורך זמן (ק״ג × חזרות)</div>
+        <div dir="ltr">
         <ResponsiveContainer width="100%" height={200}>
           <LineChart data={data}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" />
-            <XAxis dataKey="date" tick={{ fill: '#6b7280', fontSize: 10 }} />
-            <YAxis tick={{ fill: '#6b7280', fontSize: 10 }} />
+            <CartesianGrid strokeDasharray="3 3" stroke="#2a2a2e" />
+            <XAxis dataKey="date" tick={{ fill: '#a1a1a8', fontSize: 10 }} />
+            <YAxis tick={{ fill: '#a1a1a8', fontSize: 10 }} />
             <Tooltip
-              contentStyle={{ background: '#111827', border: '1px solid #374151', borderRadius: 8, color: '#f9fafb' }}
+              contentStyle={{ background: '#161618', border: '1px solid #2e2e33', borderRadius: 8, color: '#f5f5f5' }}
             />
-            <Line type="monotone" dataKey="נפח" stroke="#3b82f6" strokeWidth={2} dot={{ fill: '#3b82f6', r: 3 }} />
+            <Line type="monotone" dataKey="נפח" stroke="#ff6b1a" strokeWidth={2} dot={{ fill: '#ff6b1a', r: 3 }} />
           </LineChart>
-        </ResponsiveContainer>
+        </ResponsiveContainer></div>
+      </div>
+      <div className="bg-surface rounded-xl p-4">
+        <div className="text-sm text-muted mb-3">המשקל הכבד ביותר בכל אימון (ק״ג)</div>
+        <div dir="ltr">
+        <ResponsiveContainer width="100%" height={200}>
+          <LineChart data={data}>
+            <CartesianGrid strokeDasharray="3 3" stroke="#2a2a2e" />
+            <XAxis dataKey="date" tick={{ fill: '#a1a1a8', fontSize: 10 }} />
+            <YAxis tick={{ fill: '#a1a1a8', fontSize: 10 }} domain={['dataMin - 5', 'dataMax + 5']} />
+            <Tooltip
+              contentStyle={{ background: '#161618', border: '1px solid #2e2e33', borderRadius: 8, color: '#f5f5f5' }}
+            />
+            <Line type="stepAfter" dataKey="משקל" stroke="#f5f5f5" strokeWidth={2} dot={{ fill: '#f5f5f5', r: 3 }} />
+          </LineChart>
+        </ResponsiveContainer></div>
       </div>
     </div>
   );
@@ -128,26 +148,27 @@ function BodyWeightChart() {
   return (
     <div className="space-y-4">
       {data.length > 1 ? (
-        <div className="bg-gray-900 rounded-xl p-4">
-          <div className="text-sm text-gray-400 mb-3">משקל גוף לאורך זמן</div>
+        <div className="bg-surface rounded-xl p-4">
+          <div className="text-sm text-muted mb-3">משקל גוף לאורך זמן</div>
+          <div dir="ltr">
           <ResponsiveContainer width="100%" height={200}>
             <LineChart data={data}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" />
-              <XAxis dataKey="date" tick={{ fill: '#6b7280', fontSize: 10 }} />
-              <YAxis domain={['auto', 'auto']} tick={{ fill: '#6b7280', fontSize: 10 }} />
+              <CartesianGrid strokeDasharray="3 3" stroke="#2a2a2e" />
+              <XAxis dataKey="date" tick={{ fill: '#a1a1a8', fontSize: 10 }} />
+              <YAxis domain={['auto', 'auto']} tick={{ fill: '#a1a1a8', fontSize: 10 }} />
               <Tooltip
-                contentStyle={{ background: '#111827', border: '1px solid #374151', borderRadius: 8, color: '#f9fafb' }}
+                contentStyle={{ background: '#161618', border: '1px solid #2e2e33', borderRadius: 8, color: '#f5f5f5' }}
               />
               <Line type="monotone" dataKey="משקל" stroke="#f97316" strokeWidth={2} dot={{ fill: '#f97316', r: 3 }} />
             </LineChart>
-          </ResponsiveContainer>
+          </ResponsiveContainer></div>
         </div>
       ) : (
         <EmptyState message="הזן לפחות 2 נקודות משקל לצפייה בגרף" />
       )}
 
-      <div className="bg-gray-900 rounded-xl p-4 space-y-3">
-        <div className="text-sm text-gray-400 font-medium">הוסף שקילה</div>
+      <div className="bg-surface rounded-xl p-4 space-y-3">
+        <div className="text-sm text-muted font-medium">הוסף שקילה</div>
         <div className="flex gap-2">
           <input
             type="number"
@@ -155,24 +176,24 @@ function BodyWeightChart() {
             onChange={(e) => setVal(e.target.value)}
             placeholder='ק"ג'
             onKeyDown={(e) => e.key === 'Enter' && save()}
-            className="flex-1 bg-gray-800 rounded-lg px-3 py-2 text-white text-sm border border-gray-700 focus:border-blue-500 focus:outline-none"
+            className="flex-1 bg-surface-2 rounded-lg px-3 py-2 text-white text-sm border border-line focus:border-accent focus:outline-none"
             step="0.1"
           />
           <input
             type="date"
             value={date}
             onChange={(e) => setDate(e.target.value)}
-            className="bg-gray-800 rounded-lg px-3 py-2 text-white text-sm border border-gray-700 focus:border-blue-500 focus:outline-none"
+            className="bg-surface-2 rounded-lg px-3 py-2 text-white text-sm border border-line focus:border-accent focus:outline-none"
           />
         </div>
-        <button onClick={save} className="w-full bg-blue-600 text-white py-2 rounded-lg text-sm font-medium">
+        <button onClick={save} className="w-full bg-accent text-ink py-2 rounded-lg text-sm font-medium">
           הוסף
         </button>
       </div>
 
       <button
         onClick={() => setShowHistory((v) => !v)}
-        className="w-full flex items-center justify-between bg-gray-900 rounded-xl px-4 py-3 text-sm text-gray-400"
+        className="w-full flex items-center justify-between bg-surface rounded-xl px-4 py-3 text-sm text-muted"
       >
         <span>היסטוריה ({bodyWeightLogs.length})</span>
         <span>{showHistory ? '▲' : '▼'}</span>
@@ -181,13 +202,13 @@ function BodyWeightChart() {
       {showHistory && (
         <div className="space-y-1">
           {sorted.slice().reverse().map((l) => (
-            <div key={l.id} className="flex items-center justify-between bg-gray-900 rounded-lg px-4 py-3 text-sm">
+            <div key={l.id} className="flex items-center justify-between bg-surface rounded-lg px-4 py-3 text-sm">
               <button onClick={() => deleteBodyWeight(l.id)} className="text-red-400 text-xs">
                 מחק
               </button>
               <div>
-                <span className="font-mono text-white">{l.weightKg} ק״ג</span>
-                <span className="text-gray-400 mr-3">{new Date(l.date).toLocaleDateString('he-IL')}</span>
+                <span className="font-num text-white">{l.weightKg} ק״ג</span>
+                <span className="text-muted mr-3">{new Date(l.date).toLocaleDateString('he-IL')}</span>
               </div>
             </div>
           ))}
@@ -224,21 +245,22 @@ function WeeklyVolumeChart() {
   if (!data.length) return <EmptyState message="אין נתונים עדיין" />;
 
   return (
-    <div className="bg-gray-900 rounded-xl p-4">
-      <div className="text-sm text-gray-400 mb-3">נפח שבועי לפי סוג אימון</div>
+    <div className="bg-surface rounded-xl p-4">
+      <div className="text-sm text-muted mb-3">נפח שבועי לפי סוג אימון</div>
+      <div dir="ltr">
       <ResponsiveContainer width="100%" height={220}>
         <BarChart data={data}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" />
-          <XAxis dataKey="date" tick={{ fill: '#6b7280', fontSize: 10 }} />
-          <YAxis tick={{ fill: '#6b7280', fontSize: 10 }} />
+          <CartesianGrid strokeDasharray="3 3" stroke="#2a2a2e" />
+          <XAxis dataKey="date" tick={{ fill: '#a1a1a8', fontSize: 10 }} />
+          <YAxis tick={{ fill: '#a1a1a8', fontSize: 10 }} />
           <Tooltip
-            contentStyle={{ background: '#111827', border: '1px solid #374151', borderRadius: 8, color: '#f9fafb' }}
+            contentStyle={{ background: '#161618', border: '1px solid #2e2e33', borderRadius: 8, color: '#f5f5f5' }}
           />
           {workoutTypes.map((wt) => (
             <Bar key={wt.id} dataKey={wt.name} stackId="a" fill={wt.color} />
           ))}
         </BarChart>
-      </ResponsiveContainer>
+      </ResponsiveContainer></div>
     </div>
   );
 }
@@ -270,11 +292,11 @@ function ConsistencyChart() {
 
   return (
     <div className="space-y-4">
-      <div className="bg-gray-900 rounded-xl p-4">
-        <div className="text-sm text-gray-400 mb-3">לוח שנה (10 שבועות אחרונים)</div>
+      <div className="bg-surface rounded-xl p-4">
+        <div className="text-sm text-muted mb-3">לוח שנה (10 שבועות אחרונים)</div>
         <div className="flex gap-1 mb-1">
           {['א', 'ב', 'ג', 'ד', 'ה', 'ו', 'ש'].map((day) => (
-            <div key={day} className="flex-1 text-center text-xs text-gray-600">
+            <div key={day} className="flex-1 text-center text-xs text-faint">
               {day}
             </div>
           ))}
@@ -292,8 +314,8 @@ function ConsistencyChart() {
                       isTrained
                         ? 'bg-blue-500'
                         : isToday
-                        ? 'bg-gray-700 ring-1 ring-blue-400'
-                        : 'bg-gray-800'
+                        ? 'bg-surface-3 ring-1 ring-blue-400'
+                        : 'bg-surface-2'
                     }`}
                   />
                 );
@@ -302,9 +324,9 @@ function ConsistencyChart() {
           ))}
         </div>
       </div>
-      <div className="bg-gray-900 rounded-xl p-4 flex items-center justify-between">
-        <div className="text-gray-400 text-sm">רצף נוכחי</div>
-        <div className="text-2xl font-bold text-green-400">🔥 {streak} ימים</div>
+      <div className="bg-surface rounded-xl p-4 flex items-center justify-between">
+        <div className="text-muted text-sm">רצף נוכחי</div>
+        <div className="text-2xl font-bold text-good">🔥 {streak} ימים</div>
       </div>
     </div>
   );
@@ -312,9 +334,9 @@ function ConsistencyChart() {
 
 function EmptyState({ message }: { message: string }) {
   return (
-    <div className="bg-gray-900 rounded-xl p-8 text-center">
+    <div className="bg-surface rounded-xl p-8 text-center">
       <div className="text-4xl mb-3">📊</div>
-      <div className="text-gray-400 text-sm">{message}</div>
+      <div className="text-muted text-sm">{message}</div>
     </div>
   );
 }

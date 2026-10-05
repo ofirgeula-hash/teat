@@ -1,10 +1,11 @@
 'use client';
-import { useStore } from '@/store';
+import { useStore, exportData } from '@/store';
 import { useState } from 'react';
 import { Plus, Edit2, Check, X, Trash2, Search, Loader2 } from 'lucide-react';
 import type { ExerciseLibraryItem, MuscleGroup, EquipmentType } from '@/types';
 import { MUSCLE_GROUP_LABELS, EQUIPMENT_LABELS } from '@/types';
 import ExerciseListPicker from '@/components/ExerciseListPicker';
+import CloudBackupCard from '@/components/CloudBackupCard';
 import { EXERCISE_CATALOG } from '@/data/exerciseCatalog';
 
 type SettingsTab = 'כללי' | 'תרגילים';
@@ -25,7 +26,7 @@ export default function SettingsPage() {
             key={t}
             onClick={() => setTab(t)}
             className={`px-4 py-1.5 rounded-full text-sm font-medium transition-colors ${
-              tab === t ? 'bg-blue-600 text-white' : 'bg-gray-800 text-gray-400'
+              tab === t ? 'bg-accent text-ink' : 'bg-surface-2 text-muted'
             }`}
           >
             {t}
@@ -66,27 +67,27 @@ function LocationsManager() {
 
   return (
     <div className="space-y-2">
-      <h2 className="text-sm text-gray-400 font-medium">מיקומי אימון</h2>
-      <div className="bg-gray-900 rounded-xl divide-y divide-gray-800 overflow-hidden">
+      <h2 className="text-sm text-muted font-medium">מיקומי אימון</h2>
+      <div className="bg-surface rounded-xl divide-y divide-line overflow-hidden">
         {locations.map((loc) => (
           <div key={loc.id} className="px-4 py-3 flex items-center justify-between">
             {editLocId === loc.id ? (
               <div className="flex items-center gap-2 flex-1">
-                <button onClick={saveLoc} className="text-green-400"><Check size={15} /></button>
-                <button onClick={() => setEditLocId(null)} className="text-gray-500"><X size={15} /></button>
+                <button onClick={saveLoc} className="text-good"><Check size={15} /></button>
+                <button onClick={() => setEditLocId(null)} className="text-muted"><X size={15} /></button>
                 <input
                   value={editLocName}
                   onChange={(e) => setEditLocName(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && saveLoc()}
                   autoFocus
-                  className="flex-1 bg-gray-800 rounded px-2 py-1 text-white text-sm border border-blue-500 focus:outline-none"
+                  className="flex-1 bg-surface-2 rounded px-2 py-1 text-white text-sm border border-accent focus:outline-none"
                 />
               </div>
             ) : confirmDeleteLoc === loc.id ? (
               <div className="flex items-center gap-2 flex-1 justify-between">
                 <div className="flex gap-2">
                   <button onClick={() => { deleteLocation(loc.id); setConfirmDeleteLoc(null); }} className="text-red-400 text-xs font-medium">כן</button>
-                  <button onClick={() => setConfirmDeleteLoc(null)} className="text-gray-400 text-xs">ביטול</button>
+                  <button onClick={() => setConfirmDeleteLoc(null)} className="text-muted text-xs">ביטול</button>
                 </div>
                 <span className="text-red-400 text-xs">מחק את &apos;{loc.name}&apos;?</span>
               </div>
@@ -94,11 +95,11 @@ function LocationsManager() {
               <>
                 <div className="flex items-center gap-2">
                   {locations.length > 1 && (
-                    <button onClick={() => setConfirmDeleteLoc(loc.id)} className="text-gray-600 active:text-red-400">
+                    <button onClick={() => setConfirmDeleteLoc(loc.id)} className="text-faint active:text-red-400">
                       <Trash2 size={14} />
                     </button>
                   )}
-                  <button onClick={() => { setEditLocId(loc.id); setEditLocName(loc.name); }} className="text-gray-500 active:text-gray-300">
+                  <button onClick={() => { setEditLocId(loc.id); setEditLocName(loc.name); }} className="text-muted active:text-[#d4d4d8]">
                     <Edit2 size={14} />
                   </button>
                 </div>
@@ -108,13 +109,13 @@ function LocationsManager() {
           </div>
         ))}
         <div className="px-4 py-3 flex gap-2">
-          <button onClick={addLoc} className="bg-blue-600 text-white px-3 py-1.5 rounded-lg text-sm"><Plus size={16} /></button>
+          <button onClick={addLoc} className="bg-accent text-ink px-3 py-1.5 rounded-lg text-sm"><Plus size={16} /></button>
           <input
             value={newLocName}
             onChange={(e) => setNewLocName(e.target.value)}
             placeholder="מיקום חדש"
             onKeyDown={(e) => e.key === 'Enter' && addLoc()}
-            className="flex-1 bg-gray-800 rounded-lg px-3 py-1.5 text-white text-sm border border-gray-700 focus:border-blue-500 focus:outline-none"
+            className="flex-1 bg-surface-2 rounded-lg px-3 py-1.5 text-white text-sm border border-line focus:border-accent focus:outline-none"
           />
         </div>
       </div>
@@ -125,10 +126,11 @@ function LocationsManager() {
 // ─── General ──────────────────────────────────────────────────────────────────
 
 function GeneralSection() {
-  const { settings, updateSettings, sessions, bodyWeightLogs, workoutTypes, locations, locationPlans } = useStore();
+  const { settings, updateSettings, importData } = useStore();
+  const [importMsg, setImportMsg] = useState('');
 
   function doExport() {
-    const data = { sessions, bodyWeightLogs, workoutTypes, locations, locationPlans, exportedAt: new Date().toISOString() };
+    const data = exportData(useStore.getState());
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -138,40 +140,80 @@ function GeneralSection() {
     URL.revokeObjectURL(url);
   }
 
+  async function doImport(file: File) {
+    try {
+      const ok = importData(JSON.parse(await file.text()));
+      setImportMsg(ok ? 'הנתונים שוחזרו מהקובץ' : 'הקובץ הזה לא נראה כמו גיבוי של האפליקציה');
+    } catch {
+      setImportMsg('לא הצלחתי לקרוא את הקובץ');
+    }
+  }
+
+  const goal = settings.weeklyGoal ?? 4;
+
   return (
     <div className="space-y-4">
-      <div className="bg-gray-900 rounded-xl p-4">
+      <div className="bg-surface rounded-xl p-4">
+        <div className="text-sm font-medium text-white mb-1">יעד שבועי</div>
+        <div className="text-xs text-muted mb-3">כמה אימונים בשבוע ממלאים את הטבעת במסך הבית</div>
+        <div className="flex items-center gap-3">
+          <button onClick={() => updateSettings({ weeklyGoal: Math.max(1, goal - 1) })} aria-label="הורד יעד" className="w-11 h-11 rounded-full bg-surface-2 text-xl">−</button>
+          <span className="font-num font-bold text-4xl w-10 text-center">{goal}</span>
+          <button onClick={() => updateSettings({ weeklyGoal: Math.min(14, goal + 1) })} aria-label="העלה יעד" className="w-11 h-11 rounded-full bg-surface-2 text-xl">+</button>
+          <span className="text-muted text-sm">אימונים</span>
+        </div>
+      </div>
+
+      <div className="bg-surface rounded-xl p-4">
         <div className="text-sm font-medium text-white mb-3">זמן מנוחה ברירת מחדל</div>
         <div className="flex items-center gap-3">
           <input
             type="number"
             value={settings.defaultRestSeconds}
             onChange={(e) => updateSettings({ defaultRestSeconds: parseInt(e.target.value) || 90 })}
-            className="w-24 bg-gray-800 rounded-lg px-3 py-2 text-white text-center border border-gray-700 focus:border-blue-500 focus:outline-none"
+            className="w-24 bg-surface-2 rounded-lg px-3 py-2 text-white text-center border border-line focus:border-accent focus:outline-none"
           />
-          <span className="text-gray-400 text-sm">שניות</span>
+          <span className="text-muted text-sm">שניות</span>
         </div>
       </div>
 
-      <div className="bg-gray-900 rounded-xl p-4 space-y-3">
+      <div className="bg-surface rounded-xl p-4 space-y-3">
         <div>
           <div className="text-sm font-medium text-white mb-1">WorkoutX API Key</div>
-          <div className="text-xs text-gray-500 mb-2">להפעלת אנימציות ומילוי אוטומטי. הירשם בworkoutxapp.com</div>
+          <div className="text-xs text-muted mb-2">להפעלת אנימציות ומילוי אוטומטי. הירשם בworkoutxapp.com</div>
           <input
             value={settings.workoutXApiKey ?? ''}
             onChange={(e) => updateSettings({ workoutXApiKey: e.target.value.trim() })}
             placeholder="הכנס API Key..."
-            className="w-full bg-gray-800 rounded-lg px-3 py-2 text-white text-sm border border-gray-700 focus:border-blue-500 focus:outline-none font-mono"
+            className="w-full bg-surface-2 rounded-lg px-3 py-2 text-white text-sm border border-line focus:border-accent focus:outline-none font-mono"
           />
         </div>
       </div>
 
-      <div className="bg-gray-900 rounded-xl p-4">
-        <div className="font-medium text-white mb-1 text-sm">יצוא נתונים</div>
-        <div className="text-xs text-gray-500 mb-3">ייצא את כל הנתונים כ-JSON</div>
-        <button onClick={doExport} className="bg-gray-800 text-white px-4 py-2 rounded-lg text-sm">
-          ייצא JSON
-        </button>
+      <CloudBackupCard />
+
+      <div className="bg-surface rounded-xl p-4">
+        <div className="font-medium text-white mb-1 text-sm">גיבוי לקובץ</div>
+        <div className="text-xs text-muted mb-3">שמירה של כל הנתונים לקובץ, ושחזור מקובץ כזה. שחזור מחליף את כל הנתונים הנוכחיים.</div>
+        <div className="flex gap-2">
+          <button onClick={doExport} className="bg-surface-2 text-white px-4 py-2.5 rounded-xl text-sm">
+            שמור לקובץ
+          </button>
+          <label className="bg-surface-2 text-white px-4 py-2.5 rounded-xl text-sm cursor-pointer">
+            שחזר מקובץ
+            <input
+              type="file"
+              accept="application/json,.json"
+              className="hidden"
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                if (f && window.confirm('לשחזר מהקובץ? כל הנתונים הנוכחיים יוחלפו.')) doImport(f);
+                e.target.value = '';
+              }}
+            />
+          </label>
+        </div>
+        {importMsg && <div className="text-sm text-muted mt-3">{importMsg}</div>}
       </div>
     </div>
   );
@@ -210,26 +252,26 @@ function ExerciseLibrarySection() {
       <div className="flex gap-2">
         <button
           onClick={() => { setShowAddForm(true); setEditId(null); }}
-          className="flex-1 bg-blue-600 text-white py-2.5 rounded-xl text-sm font-medium flex items-center justify-center gap-2"
+          className="flex-1 bg-accent text-ink py-2.5 rounded-xl text-sm font-medium flex items-center justify-center gap-2"
         >
           <Plus size={16} /> הוסף תרגיל
         </button>
         <button
           onClick={() => setShowCatalogPicker(true)}
-          className="flex-1 bg-gray-700 text-gray-200 py-2.5 rounded-xl text-sm font-medium"
+          className="flex-1 bg-surface-3 text-gray-200 py-2.5 rounded-xl text-sm font-medium"
           title="הוסף תרגיל מוכר מהקטלוג המובנה"
         >
           מהקטלוג
         </button>
         <button
           onClick={handleImport}
-          className="flex-1 bg-gray-700 text-gray-200 py-2.5 rounded-xl text-sm font-medium"
+          className="flex-1 bg-surface-3 text-gray-200 py-2.5 rounded-xl text-sm font-medium"
           title="ייבא תרגילים קיימים מהתוכניות"
         >
           ייבא מהתוכניות
         </button>
       </div>
-      {importMsg && <div className="text-center text-green-400 text-sm">{importMsg}</div>}
+      {importMsg && <div className="text-center text-good text-sm">{importMsg}</div>}
 
       {showCatalogPicker && (
         <ExerciseListPicker
@@ -239,9 +281,9 @@ function ExerciseLibrarySection() {
           onClose={() => setShowCatalogPicker(false)}
           renderBadge={(item) =>
             justAdded === item.name ? (
-              <span className="text-green-400 text-xs">✓ נוסף</span>
+              <span className="text-good text-xs">✓ נוסף</span>
             ) : exerciseLibrary.some((e) => e.name === item.name) ? (
-              <span className="text-gray-500 text-xs">בספרייה</span>
+              <span className="text-muted text-xs">בספרייה</span>
             ) : null
           }
         />
@@ -257,7 +299,7 @@ function ExerciseLibrarySection() {
 
       {ALL_MUSCLE_GROUPS.map((mg) => grouped[mg].length > 0 && (
         <div key={mg}>
-          <h3 className="text-xs text-gray-500 font-medium uppercase tracking-wide mb-2">{MUSCLE_GROUP_LABELS[mg]}</h3>
+          <h3 className="text-xs text-muted font-medium uppercase tracking-wide mb-2">{MUSCLE_GROUP_LABELS[mg]}</h3>
           <div className="space-y-2">
             {grouped[mg].map((item) => editId === item.id ? (
               <ExerciseForm
@@ -276,7 +318,7 @@ function ExerciseLibrarySection() {
 
       {ungrouped.length > 0 && (
         <div>
-          <h3 className="text-xs text-gray-500 font-medium uppercase tracking-wide mb-2">ללא קבוצת שריר</h3>
+          <h3 className="text-xs text-muted font-medium uppercase tracking-wide mb-2">ללא קבוצת שריר</h3>
           <div className="space-y-2">
             {ungrouped.map((item) => editId === item.id ? (
               <ExerciseForm
@@ -294,7 +336,7 @@ function ExerciseLibrarySection() {
       )}
 
       {exerciseLibrary.length === 0 && !showAddForm && (
-        <div className="text-center py-12 text-gray-600">
+        <div className="text-center py-12 text-faint">
           <div className="text-3xl mb-2">📚</div>
           <div className="text-sm">הספרייה ריקה — הוסף תרגיל ראשון</div>
         </div>
@@ -338,20 +380,20 @@ function ExerciseLibraryCard({
   }
 
   return (
-    <div className="bg-gray-900 rounded-xl p-3">
+    <div className="bg-surface rounded-xl p-3">
       <div className="flex items-start justify-between gap-2">
         <div className="flex flex-col gap-1.5">
           {confirmDel ? (
             <>
               <button onClick={onDelete} className="text-red-400 text-xs font-medium">מחק</button>
-              <button onClick={() => setConfirmDel(false)} className="text-gray-500 text-xs">ביטול</button>
+              <button onClick={() => setConfirmDel(false)} className="text-muted text-xs">ביטול</button>
             </>
           ) : (
             <>
-              <button onClick={() => setConfirmDel(true)} className="text-gray-600 active:text-red-400"><Trash2 size={14} /></button>
-              <button onClick={onEdit} className="text-gray-500 active:text-gray-300"><Edit2 size={14} /></button>
+              <button onClick={() => setConfirmDel(true)} className="text-faint active:text-red-400"><Trash2 size={14} /></button>
+              <button onClick={onEdit} className="text-muted active:text-[#d4d4d8]"><Edit2 size={14} /></button>
               {!item.gifUrl && (
-                <button onClick={fetchGif} disabled={fetching} className="text-gray-600 active:text-blue-400 disabled:opacity-40" title="שלוף אנימציה מ-WorkoutX">
+                <button onClick={fetchGif} disabled={fetching} className="text-faint active:text-accent disabled:opacity-40" title="שלוף אנימציה מ-WorkoutX">
                   {fetching ? <Loader2 size={13} className="animate-spin" /> : <Search size={13} />}
                 </button>
               )}
@@ -360,21 +402,21 @@ function ExerciseLibraryCard({
         </div>
         <div className="text-right flex-1">
           <div className="font-medium text-white text-sm">{item.nameHe || item.name}</div>
-          {item.nameHe && <div className="text-gray-600 text-xs">{item.name}</div>}
-          {item.subMuscle && <div className="text-gray-500 text-xs">{item.subMuscle}</div>}
+          {item.nameHe && <div className="text-faint text-xs">{item.name}</div>}
+          {item.subMuscle && <div className="text-muted text-xs">{item.subMuscle}</div>}
           {item.equipment.length > 0 && (
-            <div className="text-gray-600 text-xs mt-0.5">{item.equipment.map((e) => EQUIPMENT_LABELS[e]).join(' · ')}</div>
+            <div className="text-faint text-xs mt-0.5">{item.equipment.map((e) => EQUIPMENT_LABELS[e]).join(' · ')}</div>
           )}
           {fetchError && <div className="text-red-400 text-xs mt-1">{fetchError}</div>}
         </div>
         {item.gifUrl ? (
           <img src={item.gifUrl} alt={item.name} className="w-12 h-12 rounded-lg object-contain bg-white shrink-0" />
         ) : (
-          <div className="w-12 h-12 rounded-lg bg-gray-800 shrink-0 flex items-center justify-center text-gray-600 text-xs">GIF</div>
+          <div className="w-12 h-12 rounded-lg bg-surface-2 shrink-0 flex items-center justify-center text-faint text-xs">GIF</div>
         )}
       </div>
       {item.keyPoints && (
-        <div className="text-gray-500 text-xs mt-2 text-right">{item.keyPoints}</div>
+        <div className="text-muted text-xs mt-2 text-right">{item.keyPoints}</div>
       )}
     </div>
   );
@@ -462,19 +504,19 @@ function ExerciseForm({
   }
 
   return (
-    <div className="bg-gray-900 rounded-xl p-4 space-y-3">
+    <div className="bg-surface rounded-xl p-4 space-y-3">
       <div className="flex gap-2">
         <input
           value={name}
           onChange={(e) => setName(e.target.value)}
           placeholder="שם באנגלית (Bench Press...)"
-          className="flex-1 bg-gray-800 rounded-lg px-3 py-2 text-white text-sm border border-gray-700 focus:border-blue-500 focus:outline-none"
+          className="flex-1 bg-surface-2 rounded-lg px-3 py-2 text-white text-sm border border-line focus:border-accent focus:outline-none"
           dir="ltr"
         />
         <button
           onClick={autoFill}
           disabled={loading || !name.trim()}
-          className="bg-gray-700 text-gray-300 px-3 py-2 rounded-lg text-sm flex items-center gap-1 disabled:opacity-40"
+          className="bg-surface-3 text-[#d4d4d8] px-3 py-2 rounded-lg text-sm flex items-center gap-1 disabled:opacity-40"
           title="מלא אוטומטית מ-WorkoutX"
         >
           {loading ? <Loader2 size={14} className="animate-spin" /> : <Search size={14} />}
@@ -487,14 +529,14 @@ function ExerciseForm({
         value={nameHe}
         onChange={(e) => setNameHe(e.target.value)}
         placeholder="שם בעברית (אופציונלי)"
-        className="w-full bg-gray-800 rounded-lg px-3 py-2 text-white text-sm border border-gray-700 focus:border-blue-500 focus:outline-none"
+        className="w-full bg-surface-2 rounded-lg px-3 py-2 text-white text-sm border border-line focus:border-accent focus:outline-none"
       />
 
       <div className="flex gap-2">
         <select
           value={muscleGroup}
           onChange={(e) => setMuscleGroup(e.target.value as MuscleGroup | '')}
-          className="flex-1 bg-gray-800 rounded-lg px-3 py-2 text-white text-sm border border-gray-700 focus:border-blue-500 focus:outline-none"
+          className="flex-1 bg-surface-2 rounded-lg px-3 py-2 text-white text-sm border border-line focus:border-accent focus:outline-none"
         >
           <option value="">קבוצת שריר...</option>
           {ALL_MUSCLE_GROUPS.map((mg) => <option key={mg} value={mg}>{MUSCLE_GROUP_LABELS[mg]}</option>)}
@@ -503,7 +545,7 @@ function ExerciseForm({
           value={subMuscle}
           onChange={(e) => setSubMuscle(e.target.value)}
           placeholder="תת-קבוצה"
-          className="flex-1 bg-gray-800 rounded-lg px-3 py-2 text-white text-sm border border-gray-700 focus:border-blue-500 focus:outline-none"
+          className="flex-1 bg-surface-2 rounded-lg px-3 py-2 text-white text-sm border border-line focus:border-accent focus:outline-none"
         />
       </div>
 
@@ -512,7 +554,7 @@ function ExerciseForm({
           <button
             key={eq}
             onClick={() => toggleEquipment(eq)}
-            className={`px-2 py-1 rounded-full text-xs font-medium ${equipment.includes(eq) ? 'bg-blue-600 text-white' : 'bg-gray-800 text-gray-400'}`}
+            className={`px-2 py-1 rounded-full text-xs font-medium ${equipment.includes(eq) ? 'bg-accent text-ink' : 'bg-surface-2 text-muted'}`}
           >
             {EQUIPMENT_LABELS[eq]}
           </button>
@@ -523,7 +565,7 @@ function ExerciseForm({
         value={gifUrl}
         onChange={(e) => setGifUrl(e.target.value)}
         placeholder="URL של אנימציה (GIF)"
-        className="w-full bg-gray-800 rounded-lg px-3 py-2 text-white text-sm border border-gray-700 focus:border-blue-500 focus:outline-none font-mono text-xs"
+        className="w-full bg-surface-2 rounded-lg px-3 py-2 text-white text-sm border border-line focus:border-accent focus:outline-none font-mono text-xs"
         dir="ltr"
       />
       {gifUrl && (
@@ -535,12 +577,12 @@ function ExerciseForm({
         onChange={(e) => setKeyPoints(e.target.value)}
         placeholder="דגשים מרכזיים (אופציונלי)"
         rows={2}
-        className="w-full bg-gray-800 rounded-lg px-3 py-2 text-white text-sm border border-gray-700 focus:border-blue-500 focus:outline-none resize-none"
+        className="w-full bg-surface-2 rounded-lg px-3 py-2 text-white text-sm border border-line focus:border-accent focus:outline-none resize-none"
       />
 
       <div className="flex gap-2">
-        <button onClick={onCancel} className="flex-1 bg-gray-800 text-gray-400 py-2 rounded-lg text-sm">ביטול</button>
-        <button onClick={save} className="flex-1 bg-blue-600 text-white py-2 rounded-lg text-sm font-medium">שמור</button>
+        <button onClick={onCancel} className="flex-1 bg-surface-2 text-muted py-2 rounded-lg text-sm">ביטול</button>
+        <button onClick={save} className="flex-1 bg-accent text-ink py-2 rounded-lg text-sm font-medium">שמור</button>
       </div>
     </div>
   );

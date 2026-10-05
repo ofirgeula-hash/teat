@@ -1,12 +1,21 @@
 'use client';
 import { useParams, useRouter } from 'next/navigation';
-import { useStore, getLastSessionSets } from '@/store';
+import { useStore } from '@/store';
+import { getPreviousSets, formatKg } from '@/lib/stats';
 import { useEffect, useState } from 'react';
 import type { SessionSet, PlanExercise, PlanSet, EquipmentType, MuscleGroup } from '@/types';
 import { EQUIPMENT_LABELS, MUSCLE_GROUP_LABELS } from '@/types';
 import RestTimer from '@/components/RestTimer';
 import ExerciseListPicker from '@/components/ExerciseListPicker';
-import { ChevronDown, ChevronUp, ExternalLink, Edit2, Check, X, Plus, Trash2, Timer } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ExternalLink, Edit2, Check, X, Plus, Minus, Trash2, Timer } from 'lucide-react';
+
+function formatClock(totalSeconds: number) {
+  const h = Math.floor(totalSeconds / 3600);
+  const m = Math.floor((totalSeconds % 3600) / 60);
+  const sec = totalSeconds % 60;
+  const mm = h > 0 ? String(m).padStart(2, '0') : String(m);
+  return `${h > 0 ? h + ':' : ''}${mm}:${String(sec).padStart(2, '0')}`;
+}
 
 function isUrl(text: string) {
   return text.startsWith('http://') || text.startsWith('https://');
@@ -47,7 +56,13 @@ export default function WorkoutPage() {
   const workoutType = workoutTypes.find((w) => w.id === id);
   const [selectedLocationId, setSelectedLocationId] = useState('');
   const [restTimer, setRestTimer] = useState<{ seconds: number } | null>(null);
-  const [expandedEx, setExpandedEx] = useState<Set<string>>(new Set());
+  const [currentExId, setCurrentExId] = useState<string | null>(null);
+  const [selectedSet, setSelectedSet] = useState<Record<string, number>>({});
+  const [extraSets, setExtraSets] = useState<Record<string, number>>({});
+  const [drafts, setDrafts] = useState<Record<string, { weight: string; reps: string }>>({});
+  const [showFinish, setShowFinish] = useState(false);
+  const [confirmDiscard, setConfirmDiscard] = useState(false);
+  const [now, setNow] = useState(() => Date.now());
   const [activeEquipment, setActiveEquipment] = useState<Record<string, EquipmentType>>({});
 
   // Edit mode state
@@ -96,6 +111,11 @@ export default function WorkoutPage() {
     }
   }, [id]);
 
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, []);
+
   function initEquipment(exercises: PlanExercise[]) {
     setActiveEquipment((prev) => {
       const next = { ...prev };
@@ -110,11 +130,11 @@ export default function WorkoutPage() {
 
   if (!workoutType) {
     return (
-      <div className="min-h-screen bg-gray-950 flex flex-col items-center justify-center gap-4 p-4">
-        <div className="text-gray-400 text-center">אימון לא נמצא</div>
+      <div className="min-h-screen bg-ink flex flex-col items-center justify-center gap-4 p-4">
+        <div className="text-muted text-center">אימון לא נמצא</div>
         <button
           onClick={() => { store.cancelSession(); router.push('/'); }}
-          className="bg-gray-800 text-white px-6 py-3 rounded-xl text-sm font-medium"
+          className="bg-surface-2 text-white px-6 py-3 rounded-xl text-sm font-medium"
         >
           חזרה לדף הבית
         </button>
@@ -154,7 +174,7 @@ export default function WorkoutPage() {
       setActiveVariantTab({});
     }
     setSelectedLocationId(locId);
-    setExpandedEx(new Set());
+    setCurrentExId(null);
     const plan = locationPlans.find((p) => p.locationId === locId && p.workoutTypeId === id);
     if (plan) initEquipment(plan.exercises);
   }
@@ -376,90 +396,185 @@ export default function WorkoutPage() {
     return ex.sets ?? [];
   }
 
-  function getSetsForExercise(exId: string, equipment?: EquipmentType): SessionSet[] {
-    if (!activeSession) return [];
-    return activeSession.sets.filter(
-      (s) => s.exerciseId === exId && (!equipment || s.equipment === equipment)
-    );
+  function getSetsForExercise(ex: PlanExercise, equipment?: EquipmentType): Map<number, SessionSet> {
+    const map = new Map<number, SessionSet>();
+    if (!activeSession) return map;
+    for (const s of activeSession.sets) {
+      if (s.exerciseId === ex.id && (!equipment || s.equipment === equipment)) map.set(s.setNumber, s);
+    }
+    return map;
   }
 
-  function getDefaultSet(ex: PlanExercise, setIdx: number, equipment?: EquipmentType) {
-    const lastSets = getLastSessionSets(
-      sessions.filter((s) => s.endedAt && s.id !== activeSession?.id),
-      id,
-      ex.id,
-      equipment,
-    );
-    const last = lastSets[setIdx];
+  /** Everything the workout view needs about one exercise, derived from the plan and the live session. */
+  function exerciseState(ex: PlanExercise) {
+    const hasDual = (ex.equipment?.length ?? 0) >= 2;
+    const eq = getActiveEquipment(ex);
+    const done = getSetsForExercise(ex, hasDual ? eq : undefined);
     const planSets = getExSets(ex);
-    const planSet = planSets[setIdx] ?? planSets[planSets.length - 1] ?? { reps: 10, weight: 0, restSeconds: 90 };
+    const maxDoneIdx = Math.max(-1, ...done.keys());
+    const total = Math.max(planSets.length, maxDoneIdx + 1, extraSets[ex.id] ?? 0, 1);
+    let firstOpen = -1;
+    for (let i = 0; i < total; i++) {
+      if (!done.has(i)) { firstOpen = i; break; }
+    }
+    const previous = getPreviousSets(sessions, ex.name, hasDual ? eq : undefined, activeSession?.id);
+    return { hasDual, eq, done, planSets, total, firstOpen, complete: firstOpen === -1, previous };
+  }
+
+  function defaultsFor(ex: PlanExercise, idx: number, st: ReturnType<typeof exerciseState>) {
+    const saved = st.done.get(idx);
+    if (saved) return { weight: saved.weight, reps: saved.reps };
+    const prev = st.previous[idx];
+    const plan = st.planSets[idx] ?? st.planSets[st.planSets.length - 1];
+    const lastDone = st.done.get(idx - 1);
     return {
-      weight: last?.weight ?? planSet.weight,
-      reps: last?.reps ?? planSet.reps,
-      restSeconds: planSet.restSeconds,
+      // A weight change earlier in this session carries forward to the next set.
+      weight: lastDone?.weight ?? prev?.weight ?? plan?.weight ?? 0,
+      reps: prev?.reps ?? lastDone?.reps ?? plan?.reps ?? 10,
     };
   }
 
-  function handleAutoSave(ex: PlanExercise, weight: number, reps: number, rpe: number | null, setIdx: number, existingSetId: string | undefined) {
-    if (!activeSession) return;
-    const equipment = getActiveEquipment(ex);
-    if (existingSetId) {
-      store.updateSet(existingSetId, { weight, reps, rpe });
+  function draftKey(ex: PlanExercise, eq: EquipmentType | undefined, idx: number) {
+    return `${ex.id}|${eq ?? ''}|${idx}`;
+  }
+
+  function saveCurrentSet() {
+    if (!activeSession || !currentEx || !current) return;
+    const idx = currentSetIdx;
+    const key = draftKey(currentEx, current.eq, idx);
+    const weight = parseFloat(draftWeight) || 0;
+    const reps = parseInt(draftReps) || 0;
+    if (reps <= 0) return;
+    const existing = current.done.get(idx);
+    const equipment = current.hasDual ? current.eq : getActiveEquipment(currentEx);
+    if (existing) {
+      store.updateSet(existing.id, { weight, reps });
     } else {
-      store.addSet({ exerciseId: ex.id, exerciseName: ex.name, setNumber: setIdx, weight, reps, rpe, equipment, muscleGroup: ex.muscleGroup });
+      store.addSet({ exerciseId: currentEx.id, exerciseName: currentEx.name, setNumber: idx, weight, reps, rpe: null, equipment, muscleGroup: currentEx.muscleGroup });
     }
+    setDrafts((d) => {
+      const next = { ...d };
+      delete next[key];
+      return next;
+    });
+
+    // Advance: next open set in this exercise, else the next unfinished exercise.
+    const doneNow = new Set([...current.done.keys(), idx]);
+    let nextIdx = -1;
+    for (let i = 0; i < current.total; i++) {
+      if (!doneNow.has(i)) { nextIdx = i; break; }
+    }
+    if (nextIdx !== -1) {
+      setSelectedSet((s) => ({ ...s, [currentEx.id]: nextIdx }));
+      return;
+    }
+    setSelectedSet((s) => {
+      const next = { ...s };
+      delete next[currentEx.id];
+      return next;
+    });
+    const order = exercises.findIndex((e) => e.id === currentEx.id);
+    const rest = [...exercises.slice(order + 1), ...exercises.slice(0, order)];
+    const nextEx = rest.find((e) => !exerciseState(e).complete);
+    if (nextEx) setCurrentExId(nextEx.id);
+  }
+
+  function setDraft(field: 'weight' | 'reps', value: string) {
+    if (!currentEx || !current) return;
+    const key = draftKey(currentEx, current.eq, currentSetIdx);
+    setDrafts((d) => ({
+      ...d,
+      [key]: { weight: d[key]?.weight ?? draftWeight, reps: d[key]?.reps ?? draftReps, [field]: value },
+    }));
+  }
+
+  function step(field: 'weight' | 'reps', dir: 1 | -1) {
+    const cur = parseFloat(field === 'weight' ? draftWeight : draftReps) || 0;
+    const inc = field === 'reps' ? 1 : current?.eq === 'dumbbells' ? 1 : 2.5;
+    const next = Math.max(0, Math.round((cur + dir * inc) * 10) / 10);
+    setDraft(field, String(next));
+  }
+
+  function addExtraSet(ex: PlanExercise, st: ReturnType<typeof exerciseState>) {
+    setExtraSets((e) => ({ ...e, [ex.id]: st.total + 1 }));
+    setSelectedSet((s) => ({ ...s, [ex.id]: st.total }));
   }
 
   function finish() {
-    store.finishSession();
+    const finishedId = store.finishSession();
+    router.push(finishedId ? `/summary/${finishedId}` : '/');
+  }
+
+  function discard() {
+    store.cancelSession();
     router.push('/');
   }
 
+  // ── Derived view state ────────────────────────────────────────────────────
+  const states = new Map(exercises.map((e) => [e.id, exerciseState(e)]));
+  const currentEx =
+    exercises.find((e) => e.id === currentExId) ??
+    exercises.find((e) => !states.get(e.id)!.complete) ??
+    exercises[0];
+  const current = currentEx ? states.get(currentEx.id)! : undefined;
+  const currentSetIdx = currentEx && current
+    ? Math.min(selectedSet[currentEx.id] ?? (current.firstOpen === -1 ? current.total - 1 : current.firstOpen), current.total - 1)
+    : 0;
+  const currentDefaults = currentEx && current ? defaultsFor(currentEx, currentSetIdx, current) : { weight: 0, reps: 0 };
+  const currentDraft = currentEx && current ? drafts[draftKey(currentEx, current.eq, currentSetIdx)] : undefined;
+  const draftWeight = currentDraft?.weight ?? String(currentDefaults.weight);
+  const draftReps = currentDraft?.reps ?? String(currentDefaults.reps);
+  const totalSets = exercises.reduce((n, e) => n + states.get(e.id)!.total, 0);
+  const doneSetCount = exercises.reduce((n, e) => n + states.get(e.id)!.done.size, 0);
+  const elapsed = activeSession ? Math.max(0, Math.floor((now - new Date(activeSession.startedAt).getTime()) / 1000)) : 0;
+  const currentRest = current?.planSets[currentSetIdx]?.restSeconds ?? settings.defaultRestSeconds;
+  const locationName = locations.find((l) => l.id === selectedLocationId)?.name ?? '';
+
   return (
-    <div className="min-h-screen bg-gray-950 pb-24">
+    <div className="min-h-screen bg-ink" style={{ paddingBottom: isEditing ? '2rem' : '7.5rem' }}>
       {/* Header */}
-      <div
-        className="px-4 pt-4 pb-3 space-y-2"
-        style={{ borderBottom: `2px solid ${workoutType.color}` }}
-      >
-        <div className="flex items-center justify-between">
+      <div className="px-4 pt-4 pb-3 space-y-3">
+        <div className="flex items-center justify-between gap-3">
+          <button
+            onClick={() => router.push('/')}
+            aria-label="חזרה לדף הבית"
+            className="w-11 h-11 rounded-full bg-surface flex items-center justify-center text-white shrink-0"
+          >
+            <ChevronRight size={20} />
+          </button>
           {isEditing ? (
             <input
               value={editName}
               onChange={(e) => setEditName(e.target.value)}
-              className="flex-1 bg-gray-800 rounded-lg px-3 py-1.5 text-white font-bold text-lg border border-blue-500 focus:outline-none ml-2"
+              aria-label="שם האימון"
+              className="flex-1 min-w-0 bg-surface-2 rounded-xl px-3 py-2 text-white font-bold text-lg border border-accent focus:outline-none"
             />
           ) : (
-            <div className="font-bold text-white text-lg flex-1">
-              {workoutType.emoji} {workoutType.name}
+            <div className="flex-1 min-w-0 text-center">
+              <div className="font-bold text-white text-base truncate">{workoutType.name}</div>
+              <div className="text-xs text-muted">
+                {locationName}
+                {activeSession && <> · <span className="font-num text-sm tracking-wide">{formatClock(elapsed)}</span></>}
+              </div>
             </div>
           )}
-          <div className="flex items-center gap-1">
-            {!isEditing && (
-              <button
-                onClick={() => setRestTimer({ seconds: settings.defaultRestSeconds })}
-                className="p-2 rounded-lg text-gray-500 active:text-blue-400"
-              >
-                <Timer size={18} />
-              </button>
-            )}
-            <button
-              onClick={isEditing ? cancelEdit : enterEditMode}
-              className={`p-2 rounded-lg ${isEditing ? 'text-gray-400 active:text-white' : 'text-gray-500 active:text-gray-300'}`}
-            >
-              {isEditing ? <X size={18} /> : <Edit2 size={18} />}
-            </button>
-          </div>
+          <button
+            onClick={isEditing ? cancelEdit : enterEditMode}
+            aria-label={isEditing ? 'ביטול עריכה' : 'עריכת תוכנית'}
+            className="w-11 h-11 rounded-full bg-surface flex items-center justify-center text-white shrink-0"
+          >
+            {isEditing ? <X size={18} /> : <Edit2 size={17} />}
+          </button>
         </div>
 
-        {/* Location tabs */}
-        <div className="flex gap-2 flex-wrap">
+        {(isEditing || locations.length > 1) && (
+        <div className="flex gap-2 flex-wrap justify-center">
           {locations.map((loc) => (
             <div key={loc.id} className="flex items-center gap-1">
               <button
                 onClick={() => handleLocationChange(loc.id)}
-                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-                  selectedLocationId === loc.id ? 'bg-blue-600 text-white' : 'bg-gray-800 text-gray-400'
+                className={`px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
+                  selectedLocationId === loc.id ? 'bg-white text-ink' : 'bg-surface text-muted'
                 }`}
               >
                 {loc.name}
@@ -468,11 +583,11 @@ export default function WorkoutPage() {
                 confirmDeleteLoc === loc.id ? (
                   <div className="flex items-center gap-1">
                     <button onClick={() => deleteLocation(loc.id)} className="text-red-400 text-xs font-medium">כן</button>
-                    <button onClick={() => setConfirmDeleteLoc(null)} className="text-gray-500 text-xs">ביטול</button>
+                    <button onClick={() => setConfirmDeleteLoc(null)} className="text-muted text-xs">ביטול</button>
                   </div>
                 ) : (
                   locations.length > 1 && (
-                    <button onClick={() => setConfirmDeleteLoc(loc.id)} className="text-gray-600 active:text-red-400">
+                    <button onClick={() => setConfirmDeleteLoc(loc.id)} className="text-faint active:text-red-400">
                       <X size={14} />
                     </button>
                   )
@@ -489,30 +604,46 @@ export default function WorkoutPage() {
                   onKeyDown={(e) => e.key === 'Enter' && addLocation()}
                   placeholder="שם מיקום"
                   autoFocus
-                  className="bg-gray-800 rounded-lg px-2 py-1 text-white text-xs border border-blue-500 focus:outline-none w-24"
+                  className="bg-surface-2 rounded-lg px-2 py-1 text-white text-xs border border-accent focus:outline-none w-24"
                 />
-                <button onClick={addLocation} className="text-green-400"><Check size={14} /></button>
-                <button onClick={() => { setShowAddLoc(false); setNewLocName(''); }} className="text-gray-500"><X size={14} /></button>
+                <button onClick={addLocation} className="text-good"><Check size={14} /></button>
+                <button onClick={() => { setShowAddLoc(false); setNewLocName(''); }} className="text-muted"><X size={14} /></button>
               </div>
             ) : (
               <button
                 onClick={() => setShowAddLoc(true)}
-                className="px-2 py-1.5 rounded-lg bg-gray-800 text-gray-500 active:text-gray-300"
+                className="px-2 py-1.5 rounded-lg bg-surface-2 text-muted active:text-[#d4d4d8]"
               >
                 <Plus size={14} />
               </button>
             )
           )}
         </div>
+        )}
+
+        {!isEditing && exercises.length > 0 && (
+          <div className="flex gap-1" aria-hidden="true">
+            {exercises.map((ex) => {
+              const st = states.get(ex.id)!;
+              const isCurrent = ex.id === currentEx?.id;
+              return (
+                <div
+                  key={ex.id}
+                  className={`flex-1 h-1 rounded-full ${st.complete ? 'bg-accent' : st.done.size > 0 || isCurrent ? 'bg-accent/45' : 'bg-surface-3'}`}
+                />
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {/* Content */}
-      <div className="p-4 space-y-4">
+      <div className="px-4 space-y-3">
         {isEditing ? (
           // ── Edit mode ──────────────────────────────────────────────────────
           <>
             {localExs.length === 0 && (
-              <div className="text-center py-8 text-gray-600 text-sm">אין תרגילים — הוסף את הראשון</div>
+              <div className="text-center py-8 text-faint text-sm">אין תרגילים — הוסף את הראשון</div>
             )}
             {localExs.map((ex, exIdx) => {
               const hasDual = (ex.equipment?.length ?? 0) >= 2;
@@ -521,12 +652,12 @@ export default function WorkoutPage() {
               const currentSets = hasDual ? (ex.variants?.[activeTab]?.sets ?? []) : (ex.sets ?? []);
 
               return (
-                <div key={ex.id} className="bg-gray-900 rounded-xl p-3 space-y-2">
+                <div key={ex.id} className="bg-surface rounded-xl p-3 space-y-2">
                   {/* Header row */}
                   <div className="flex items-center gap-2">
                     <div className="flex flex-col gap-0.5">
-                      <button onClick={() => moveExercise(exIdx, -1)} disabled={exIdx === 0} className="text-gray-500 disabled:opacity-30 text-xs leading-none">▲</button>
-                      <button onClick={() => moveExercise(exIdx, 1)} disabled={exIdx === localExs.length - 1} className="text-gray-500 disabled:opacity-30 text-xs leading-none">▼</button>
+                      <button onClick={() => moveExercise(exIdx, -1)} disabled={exIdx === 0} className="text-muted disabled:opacity-30 text-xs leading-none">▲</button>
+                      <button onClick={() => moveExercise(exIdx, 1)} disabled={exIdx === localExs.length - 1} className="text-muted disabled:opacity-30 text-xs leading-none">▼</button>
                     </div>
                     <input
                       value={ex.name}
@@ -538,13 +669,13 @@ export default function WorkoutPage() {
                         }
                       }}
                       placeholder="שם תרגיל"
-                      className="flex-1 bg-gray-800 rounded px-2 py-1.5 text-white text-sm border border-gray-700 focus:border-blue-500 focus:outline-none text-right"
+                      className="flex-1 bg-surface-2 rounded px-2 py-1.5 text-white text-sm border border-line focus:border-accent focus:outline-none text-right"
                     />
                     {confirmDeleteEx === exIdx ? (
                       <div className="flex items-center gap-1.5 shrink-0">
                         <span className="text-red-400 text-xs">מחק?</span>
                         <button onClick={() => removeExercise(exIdx)} className="text-red-400 text-xs font-medium">כן</button>
-                        <button onClick={() => setConfirmDeleteEx(null)} className="text-gray-400 text-xs">ביטול</button>
+                        <button onClick={() => setConfirmDeleteEx(null)} className="text-muted text-xs">ביטול</button>
                       </div>
                     ) : (
                       <button onClick={() => setConfirmDeleteEx(exIdx)} className="text-red-400 shrink-0">
@@ -558,7 +689,7 @@ export default function WorkoutPage() {
                     <select
                       value={ex.muscleGroup ?? ''}
                       onChange={(e) => updateExercise(exIdx, { muscleGroup: (e.target.value as MuscleGroup) || undefined })}
-                      className="bg-gray-800 rounded px-2 py-1 text-gray-300 text-xs border border-gray-700 focus:border-blue-500 focus:outline-none"
+                      className="bg-surface-2 rounded px-2 py-1 text-[#d4d4d8] text-xs border border-line focus:border-accent focus:outline-none"
                     >
                       <option value="">קבוצת שריר...</option>
                       {(Object.keys(MUSCLE_GROUP_LABELS) as MuscleGroup[]).map((mg) => (
@@ -577,7 +708,7 @@ export default function WorkoutPage() {
                           key={eq}
                           onClick={() => !disabled && toggleEquipment(exIdx, eq)}
                           className={`px-2 py-1 rounded-full text-xs font-medium transition-colors ${
-                            selected ? 'bg-blue-600 text-white' : disabled ? 'bg-gray-800 text-gray-600' : 'bg-gray-800 text-gray-400 active:bg-gray-700'
+                            selected ? 'bg-accent text-ink' : disabled ? 'bg-surface-2 text-faint' : 'bg-surface-2 text-muted active:bg-surface-3'
                           }`}
                         >
                           {EQUIPMENT_LABELS[eq]}
@@ -594,7 +725,7 @@ export default function WorkoutPage() {
                           key={eq}
                           onClick={() => setActiveVariantTab((prev) => ({ ...prev, [exIdx]: eq }))}
                           className={`px-3 py-1 rounded-lg text-xs font-medium transition-colors ${
-                            activeTab === eq ? 'bg-gray-700 text-white' : 'bg-gray-800 text-gray-400'
+                            activeTab === eq ? 'bg-surface-3 text-white' : 'bg-surface-2 text-muted'
                           }`}
                         >
                           {EQUIPMENT_LABELS[eq]}
@@ -611,33 +742,33 @@ export default function WorkoutPage() {
                           value={note}
                           onChange={(e) => updateNote(exIdx, ni, e.target.value)}
                           placeholder="הערה..."
-                          className="flex-1 bg-gray-800 rounded px-2 py-1 text-gray-300 text-xs border border-gray-700 focus:border-blue-500 focus:outline-none"
+                          className="flex-1 bg-surface-2 rounded px-2 py-1 text-[#d4d4d8] text-xs border border-line focus:border-accent focus:outline-none"
                         />
-                        <button onClick={() => removeNote(exIdx, ni)} className="text-gray-600 active:text-red-400 shrink-0">
+                        <button onClick={() => removeNote(exIdx, ni)} className="text-faint active:text-red-400 shrink-0">
                           <X size={12} />
                         </button>
                       </div>
                     ))}
-                    <button onClick={() => addNote(exIdx)} className="flex items-center gap-1 text-gray-600 text-xs">
+                    <button onClick={() => addNote(exIdx)} className="flex items-center gap-1 text-faint text-xs">
                       <Plus size={10} /> הוסף הערה
                     </button>
                   </div>
 
                   {/* Sets */}
                   <div className="space-y-1">
-                    <div className="grid grid-cols-5 gap-1 text-xs text-gray-500 text-center">
+                    <div className="grid grid-cols-5 gap-1 text-xs text-muted text-center">
                       <div>סט</div><div>ק״ג</div><div>חז&apos;</div><div>מנוחה</div><div></div>
                     </div>
                     {currentSets.map((s, setIdx) => (
                       <div key={setIdx} className="grid grid-cols-5 gap-1 items-center">
-                        <div className="text-xs text-gray-500 text-center">{setIdx + 1}</div>
+                        <div className="text-xs text-muted text-center">{setIdx + 1}</div>
                         {(['weight', 'reps', 'restSeconds'] as const).map((field) => (
                           <input
                             key={field}
                             type="number"
                             value={s[field]}
                             onChange={(e) => updateSet(exIdx, setIdx, field, e.target.value)}
-                            className="bg-gray-800 rounded px-1 py-1 text-white text-center text-xs border border-gray-700 focus:border-blue-500 focus:outline-none"
+                            className="bg-surface-2 rounded px-1 py-1 text-white text-center text-xs border border-line focus:border-accent focus:outline-none"
                           />
                         ))}
                         {currentSets.length > 1 ? (
@@ -645,7 +776,7 @@ export default function WorkoutPage() {
                         ) : <div />}
                       </div>
                     ))}
-                    <button onClick={() => addSet(exIdx)} className="text-blue-400 text-xs flex items-center gap-1 mt-1">
+                    <button onClick={() => addSet(exIdx)} className="text-accent text-xs flex items-center gap-1 mt-1">
                       <Plus size={12} /> הוסף סט
                     </button>
                   </div>
@@ -655,184 +786,279 @@ export default function WorkoutPage() {
 
             <button
               onClick={addExercise}
-              className="w-full border border-dashed border-gray-700 rounded-xl py-3 text-gray-400 text-sm flex items-center justify-center gap-2"
+              className="w-full border border-dashed border-line rounded-xl py-3 text-muted text-sm flex items-center justify-center gap-2"
             >
               <Plus size={16} /> הוסף תרגיל
             </button>
 
             <button
               onClick={saveEdit}
-              className="w-full bg-green-600 text-white py-3 rounded-xl font-bold text-sm"
+              className="w-full bg-accent text-ink py-3 rounded-xl font-bold text-sm"
             >
               שמור שינויים
             </button>
           </>
         ) : (
-          // ── Normal workout mode ────────────────────────────────────────────
+          // ── Workout mode ───────────────────────────────────────────────────
           <>
             {exercises.length === 0 && (
-              <div className="text-center py-12 text-gray-500">
-                <div className="text-4xl mb-3">📋</div>
-                <div className="text-sm">אין תרגילים במיקום זה</div>
-                <div className="text-xs mt-1">לחץ על ✏️ כדי לערוך את התוכנית</div>
+              <div className="text-center py-16 text-muted">
+                <div className="text-base font-medium text-white mb-1">אין תרגילים במיקום הזה</div>
+                <div className="text-sm">לחץ על העיפרון למעלה כדי לבנות את התוכנית</div>
               </div>
             )}
 
-            {exercises.map((ex) => {
-              const isExpanded = expandedEx.has(ex.id);
-              const hasDualEquipment = (ex.equipment?.length ?? 0) >= 2;
-              const currentEq = getActiveEquipment(ex);
-              const doneSets = getSetsForExercise(ex.id, hasDualEquipment ? currentEq : undefined);
+            {exercises.map((ex, exIdx) => {
+              const st = states.get(ex.id)!;
+              if (ex.id !== currentEx?.id) {
+                const lastDone = st.done.size ? [...st.done.values()].sort((a, b) => b.setNumber - a.setNumber)[0] : null;
+                return (
+                  <button
+                    key={ex.id}
+                    onClick={() => setCurrentExId(ex.id)}
+                    className="w-full bg-surface rounded-2xl px-4 py-3.5 flex items-center gap-3 text-right active:bg-surface-2"
+                  >
+                    <div
+                      className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 text-sm font-bold ${
+                        st.complete ? 'bg-accent text-ink' : 'bg-surface-3 text-muted'
+                      }`}
+                    >
+                      {st.complete ? <Check size={16} strokeWidth={3} /> : exIdx + 1}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className={`font-semibold truncate ${st.complete ? 'text-muted' : 'text-white'}`}>{ex.name}</div>
+                      <div className="text-xs text-muted mt-0.5">
+                        {st.done.size}/{st.total} סטים
+                        {lastDone && <> · אחרון {formatKg(lastDone.weight)}×{lastDone.reps}</>}
+                      </div>
+                    </div>
+                    <ChevronLeft size={18} className="text-faint shrink-0" />
+                  </button>
+                );
+              }
+
               const notes = getExNotes(ex);
-              const planSets = getExSets(ex);
+              const libItem = ex.libraryId ? exerciseLibrary.find((l) => l.id === ex.libraryId) : undefined;
+              const prevSet = st.previous[currentSetIdx];
+              const savedHere = st.done.get(currentSetIdx);
+              const weightNum = parseFloat(draftWeight) || 0;
+              const diff = prevSet ? Math.round((weightNum - prevSet.weight) * 10) / 10 : null;
 
               return (
-                <div key={ex.id} className="bg-gray-900 rounded-xl overflow-hidden">
-                  <button
-                    className="w-full p-4 flex items-center justify-between"
-                    onClick={() =>
-                      setExpandedEx((prev) => {
-                        const next = new Set(prev);
-                        if (next.has(ex.id)) next.delete(ex.id);
-                        else next.add(ex.id);
-                        return next;
-                      })
-                    }
-                  >
-                    <div className="flex items-center gap-2">
-                      {isExpanded ? <ChevronUp size={18} className="text-gray-400" /> : <ChevronDown size={18} className="text-gray-400" />}
-                      <span className="font-semibold text-white">{ex.name}</span>
+                <section key={ex.id} aria-label={ex.name} className="bg-surface rounded-[28px] p-5 space-y-4">
+                  <div className="space-y-1">
+                    <div className="text-xs text-muted font-medium">תרגיל {exIdx + 1} מתוך {exercises.length}</div>
+                    <h2 className="text-2xl font-extrabold leading-tight text-white">{ex.name}</h2>
+                  </div>
+
+                  {st.hasDual && (
+                    <div className="flex gap-2">
+                      {ex.equipment.map((eq) => (
+                        <button
+                          key={eq}
+                          onClick={() => setActiveEquipment((prev) => ({ ...prev, [ex.id]: eq }))}
+                          className={`px-3.5 py-1.5 rounded-full text-sm font-medium ${
+                            st.eq === eq ? 'bg-white text-ink' : 'bg-surface-2 text-muted'
+                          }`}
+                        >
+                          {EQUIPMENT_LABELS[eq]}
+                        </button>
+                      ))}
                     </div>
-                    <div className="flex items-center gap-1.5">
-                      {ex.equipment?.length === 1 && (
-                        <span className="text-xs text-gray-600 bg-gray-800 px-2 py-0.5 rounded-full">
-                          {EQUIPMENT_LABELS[ex.equipment[0]]}
-                        </span>
-                      )}
-                    </div>
-                  </button>
-
-                  {isExpanded && (
-                    <>
-                      {hasDualEquipment && (
-                        <div className="px-4 pb-2 flex gap-2 justify-end">
-                          {ex.equipment.map((eq) => (
-                            <button
-                              key={eq}
-                              onClick={() => setActiveEquipment((prev) => ({ ...prev, [ex.id]: eq }))}
-                              className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
-                                currentEq === eq ? 'bg-blue-600 text-white' : 'bg-gray-800 text-gray-400'
-                              }`}
-                            >
-                              {EQUIPMENT_LABELS[eq]}
-                            </button>
-                          ))}
-                        </div>
-                      )}
-
-                      {ex.libraryId && (() => {
-                        const libItem = exerciseLibrary.find((l) => l.id === ex.libraryId);
-                        return libItem?.gifUrl ? (
-                          <div className="px-4 pb-2 flex justify-center">
-                            <img
-                              src={libItem.gifUrl}
-                              alt={libItem.name}
-                              className="w-40 h-40 object-contain rounded-xl bg-white"
-                            />
-                          </div>
-                        ) : null;
-                      })()}
-
-                      {editingNotesExId === ex.id ? (
-                        <div className="px-4 pb-3 space-y-2">
-                          {inlineNotes.map((note, ni) => (
-                            <div key={ni} className="flex items-center gap-1">
-                              <input
-                                value={note}
-                                onChange={(e) => setInlineNotes((prev) => prev.map((n, i) => i === ni ? e.target.value : n))}
-                                placeholder="הערה..."
-                                className="flex-1 bg-gray-800 rounded px-2 py-1 text-gray-300 text-xs border border-gray-700 focus:border-blue-500 focus:outline-none"
-                              />
-                              <button onClick={() => setInlineNotes((prev) => prev.filter((_, i) => i !== ni))} className="text-gray-600 active:text-red-400 shrink-0">
-                                <X size={12} />
-                              </button>
-                            </div>
-                          ))}
-                          <button onClick={() => setInlineNotes((prev) => [...prev, ''])} className="flex items-center gap-1 text-gray-600 text-xs">
-                            <Plus size={10} /> הוסף הערה
-                          </button>
-                          <div className="flex gap-2 pt-1">
-                            <button onClick={cancelInlineNotes} className="flex-1 bg-gray-800 text-gray-400 py-1.5 rounded-lg text-xs flex items-center justify-center gap-1">
-                              <X size={12} /> ביטול
-                            </button>
-                            <button onClick={() => saveInlineNotes(ex)} className="flex-1 bg-blue-600 text-white py-1.5 rounded-lg text-xs font-medium flex items-center justify-center gap-1">
-                              <Check size={12} /> שמור
-                            </button>
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="px-4 pb-2">
-                          {notes.length > 0 && (
-                            <div className="space-y-1 mb-1">
-                              {notes.map((note, noteIdx) => (
-                                <div key={noteIdx} className="flex items-start gap-2">
-                                  <span className="text-gray-600 text-xs shrink-0 mt-0.5">•</span>
-                                  {isUrl(note) ? (
-                                    <a href={note} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-blue-400 text-xs active:text-blue-300 truncate">
-                                      <ExternalLink size={10} className="shrink-0" />
-                                      <span className="truncate">{note}</span>
-                                    </a>
-                                  ) : (
-                                    <span className="text-gray-500 text-xs">{note}</span>
-                                  )}
-                                </div>
-                              ))}
-                            </div>
-                          )}
-                          <button onClick={() => openInlineNotes(ex)} className="flex items-center gap-1 text-gray-600 active:text-gray-400 text-xs">
-                            <Edit2 size={11} /> {notes.length > 0 ? 'ערוך הערות' : 'הוסף הערה'}
-                          </button>
-                        </div>
-                      )}
-
-                      <div className="px-4 pb-4 space-y-2">
-                        <div className="grid grid-cols-12 gap-1 text-xs text-gray-500 text-center mb-1">
-                          <div className="col-span-1">סט</div>
-                          <div className="col-span-5">ק״ג</div>
-                          <div className="col-span-4">חז&apos;</div>
-                          <div className="col-span-2">RPE</div>
-                        </div>
-
-                        {Array.from({ length: Math.max(planSets.length, doneSets.length) }).map((_, setIdx) => {
-                          const def = getDefaultSet(ex, setIdx, hasDualEquipment ? currentEq : undefined);
-                          const done = doneSets[setIdx];
-                          return (
-                            <SetRow
-                              key={`${ex.id}-${currentEq ?? 'none'}-${setIdx}`}
-                              setIdx={setIdx + 1}
-                              defaultWeight={def.weight}
-                              defaultReps={def.reps}
-                              savedSet={done}
-                              onSave={(w, r, rpe) => handleAutoSave(ex, w, r, rpe, setIdx, done?.id)}
-                            />
-                          );
-                        })}
-                      </div>
-                    </>
                   )}
-                </div>
+
+                  {libItem?.gifUrl && (
+                    <div className="flex justify-center">
+                      <img src={libItem.gifUrl} alt={libItem.name} className="w-44 h-44 object-contain rounded-2xl bg-white" />
+                    </div>
+                  )}
+
+                  {editingNotesExId === ex.id ? (
+                    <div className="space-y-2">
+                      {inlineNotes.map((note, ni) => (
+                        <div key={ni} className="flex items-center gap-2">
+                          <input
+                            value={note}
+                            onChange={(e) => setInlineNotes((prev) => prev.map((n, i) => i === ni ? e.target.value : n))}
+                            placeholder="דגש לתרגיל..."
+                            aria-label={`דגש ${ni + 1}`}
+                            className="flex-1 bg-surface-2 rounded-xl px-3 py-2 text-white text-sm border border-line focus:border-accent focus:outline-none"
+                          />
+                          <button onClick={() => setInlineNotes((prev) => prev.filter((_, i) => i !== ni))} aria-label="מחק דגש" className="text-faint active:text-red-400 shrink-0 p-1">
+                            <X size={16} />
+                          </button>
+                        </div>
+                      ))}
+                      <button onClick={() => setInlineNotes((prev) => [...prev, ''])} className="flex items-center gap-1 text-muted text-sm">
+                        <Plus size={14} /> הוסף דגש
+                      </button>
+                      <div className="flex gap-2 pt-1">
+                        <button onClick={cancelInlineNotes} className="flex-1 bg-surface-2 text-muted py-2.5 rounded-xl text-sm">ביטול</button>
+                        <button onClick={() => saveInlineNotes(ex)} className="flex-1 bg-white text-ink py-2.5 rounded-xl text-sm font-bold">שמור</button>
+                      </div>
+                    </div>
+                  ) : (
+                    <button onClick={() => openInlineNotes(ex)} className="w-full text-right bg-surface-2/60 rounded-2xl px-4 py-3 space-y-1">
+                      {notes.length > 0 ? (
+                        notes.map((note, ni) =>
+                          isUrl(note) ? (
+                            <a
+                              key={ni}
+                              href={note}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              onClick={(e) => e.stopPropagation()}
+                              className="flex items-center gap-1 text-accent text-sm truncate"
+                            >
+                              <ExternalLink size={13} className="shrink-0" />
+                              <span className="truncate">{note}</span>
+                            </a>
+                          ) : (
+                            <div key={ni} className="text-sm text-[#d4d4d8] leading-snug">• {note}</div>
+                          )
+                        )
+                      ) : (
+                        <div className="text-sm text-faint">+ הוסף דגשים לתרגיל</div>
+                      )}
+                    </button>
+                  )}
+
+                  <div className="flex items-baseline justify-between pt-1">
+                    <div className="text-base font-bold text-white">
+                      סט {currentSetIdx + 1} <span className="text-muted font-medium">מתוך {st.total}</span>
+                    </div>
+                    <div className="text-sm text-muted">
+                      {prevSet ? <>בפעם הקודמת: <span className="text-white font-medium">{formatKg(prevSet.weight)} × {prevSet.reps}</span></> : 'פעם ראשונה'}
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <NumberStepper
+                      label="ק״ג"
+                      value={draftWeight}
+                      accent
+                      decimal
+                      onChange={(v) => setDraft('weight', v)}
+                      onStep={(d) => step('weight', d)}
+                    />
+                    <NumberStepper
+                      label="חזרות"
+                      value={draftReps}
+                      onChange={(v) => setDraft('reps', v)}
+                      onStep={(d) => step('reps', d)}
+                    />
+                  </div>
+
+                  {diff !== null && (
+                    <div className={`text-center text-sm font-medium ${diff > 0 ? 'text-accent' : 'text-muted'}`}>
+                      {diff > 0 ? `▲ ${formatKg(diff)} ק״ג מהפעם הקודמת` : diff < 0 ? `▼ ${formatKg(-diff)} ק״ג מהפעם הקודמת` : 'אותו משקל כמו בפעם הקודמת'}
+                    </div>
+                  )}
+
+                  <div className="flex flex-wrap gap-2 justify-center">
+                    {Array.from({ length: st.total }).map((_, i) => {
+                      const d = st.done.get(i);
+                      const selected = i === currentSetIdx;
+                      return (
+                        <button
+                          key={i}
+                          onClick={() => setSelectedSet((s) => ({ ...s, [ex.id]: i }))}
+                          aria-label={`סט ${i + 1}`}
+                          aria-pressed={selected}
+                          className={`h-9 px-3 rounded-full text-sm font-medium flex items-center gap-1 border ${
+                            selected
+                              ? 'border-accent text-white bg-surface-2'
+                              : d
+                              ? 'border-transparent bg-surface-2 text-[#d4d4d8]'
+                              : 'border-dashed border-line text-faint'
+                          }`}
+                        >
+                          {d ? <><Check size={13} strokeWidth={3} className="text-accent" /> {formatKg(d.weight)}×{d.reps}</> : `סט ${i + 1}`}
+                        </button>
+                      );
+                    })}
+                    <button
+                      onClick={() => addExtraSet(ex, st)}
+                      aria-label="הוסף סט"
+                      className="h-9 w-9 rounded-full border border-dashed border-line text-faint flex items-center justify-center"
+                    >
+                      <Plus size={15} />
+                    </button>
+                  </div>
+                  {savedHere && (
+                    <div className="text-center text-xs text-faint">הסט הזה כבר נשמר — שינוי יעדכן אותו</div>
+                  )}
+                </section>
               );
             })}
 
-            <button
-              onClick={finish}
-              className="w-full bg-green-600 text-white py-4 rounded-xl font-bold text-base mt-4"
-            >
-              סיים אימון
-            </button>
+            {exercises.length > 0 && (
+              <button
+                onClick={() => setShowFinish(true)}
+                className="w-full bg-surface text-white py-4 rounded-2xl font-bold text-base mt-2"
+              >
+                סיים אימון
+              </button>
+            )}
           </>
         )}
       </div>
+
+      {/* Primary action bar */}
+      {!isEditing && currentEx && (
+        <div
+          className="fixed bottom-0 inset-x-0 z-30 bg-gradient-to-t from-ink via-ink to-transparent pt-6"
+          style={{ paddingBottom: 'calc(1rem + env(safe-area-inset-bottom))' }}
+        >
+          <div className="max-w-lg mx-auto px-4 flex gap-3">
+            <button
+              onClick={saveCurrentSet}
+              className="flex-1 h-16 rounded-full bg-accent text-ink text-lg font-extrabold flex items-center justify-center gap-2 active:scale-[0.98] transition-transform"
+            >
+              <Check size={22} strokeWidth={3} />
+              {current?.done.has(currentSetIdx) ? 'עדכן סט' : 'סיימתי סט'}
+            </button>
+            <button
+              onClick={() => setRestTimer({ seconds: currentRest })}
+              aria-label="טיימר מנוחה"
+              className="w-16 h-16 rounded-full bg-surface flex items-center justify-center text-white"
+            >
+              <Timer size={24} />
+            </button>
+          </div>
+        </div>
+      )}
+
+      {showFinish && (
+        <div className="fixed inset-0 z-50 bg-black/70 flex items-end" onClick={() => { setShowFinish(false); setConfirmDiscard(false); }}>
+          <div
+            className="w-full max-w-lg mx-auto bg-surface rounded-t-[28px] p-6 space-y-4"
+            style={{ paddingBottom: 'calc(1.5rem + env(safe-area-inset-bottom))' }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="text-xl font-extrabold">לסיים את האימון?</div>
+            <div className="text-muted text-sm">
+              השלמת <span className="text-white font-bold">{doneSetCount}</span> מתוך {totalSets} סטים
+              {activeSession && <> · {formatClock(elapsed)}</>}
+            </div>
+            <button onClick={finish} className="w-full h-14 rounded-full bg-accent text-ink font-extrabold text-base">
+              {doneSetCount > 0 ? 'סיים ושמור' : 'סיים (לא נשמרו סטים)'}
+            </button>
+            <button onClick={() => setShowFinish(false)} className="w-full h-12 rounded-full bg-surface-2 text-white font-medium">
+              המשך להתאמן
+            </button>
+            {confirmDiscard ? (
+              <button onClick={discard} className="w-full text-red-400 text-sm font-medium py-2">
+                בטוח? כל הסטים של האימון הזה יימחקו
+              </button>
+            ) : (
+              <button onClick={() => setConfirmDiscard(true)} className="w-full text-faint text-sm py-2">
+                בטל אימון בלי לשמור
+              </button>
+            )}
+          </div>
+        </div>
+      )}
 
       {restTimer && (
         <RestTimer seconds={restTimer.seconds} onClose={() => setRestTimer(null)} />
@@ -860,58 +1086,36 @@ export default function WorkoutPage() {
 }
 
 
-interface SetRowProps {
-  setIdx: number;
-  defaultWeight: number;
-  defaultReps: number;
-  savedSet?: SessionSet;
-  onSave: (weight: number, reps: number, rpe: number | null) => void;
+interface NumberStepperProps {
+  label: string;
+  value: string;
+  accent?: boolean;
+  decimal?: boolean;
+  onChange: (value: string) => void;
+  onStep: (dir: 1 | -1) => void;
 }
 
-function SetRow({ setIdx, defaultWeight, defaultReps, savedSet, onSave }: SetRowProps) {
-  const [weight, setWeight] = useState(String(savedSet?.weight ?? defaultWeight));
-  const [reps, setReps] = useState(String(savedSet?.reps ?? defaultReps));
-  const [rpe, setRpe] = useState(savedSet?.rpe != null ? String(savedSet.rpe) : '');
-
-  const isDone = !!savedSet;
-
-  function handleBlur() {
-    const w = parseFloat(weight) || 0;
-    const r = parseInt(reps) || 0;
-    if (r > 0) {
-      onSave(w, r, rpe ? parseInt(rpe) : null);
-    }
-  }
-
-  const inputClass = (done: boolean) =>
-    `w-full bg-gray-800 rounded-lg px-2 py-2 text-center text-sm border focus:outline-none font-mono ${
-      done ? 'text-green-400 border-green-900 focus:border-green-600' : 'text-white border-gray-700 focus:border-blue-500'
-    }`;
-
+function NumberStepper({ label, value, accent, decimal, onChange, onStep }: NumberStepperProps) {
   return (
-    <div className="grid grid-cols-12 gap-1 items-center">
-      <div className={`col-span-1 text-center text-xs font-medium ${isDone ? 'text-green-500' : 'text-gray-500'}`}>
-        {setIdx}
-      </div>
-      <div className="col-span-5">
-        <input type="number" value={weight} onChange={(e) => setWeight(e.target.value)} onBlur={handleBlur} className={inputClass(isDone)} step="0.5" />
-      </div>
-      <div className="col-span-4">
-        <input type="number" value={reps} onChange={(e) => setReps(e.target.value)} onBlur={handleBlur} className={inputClass(isDone)} />
-      </div>
-      <div className="col-span-2">
+    <div className="flex flex-col items-center gap-2">
+      <label className="flex flex-col items-center gap-1 w-full">
+        <span className="text-xs text-muted font-medium">{label}</span>
         <input
-          type="number"
-          value={rpe}
-          onChange={(e) => setRpe(e.target.value)}
-          onBlur={handleBlur}
-          placeholder="—"
-          min="1"
-          max="10"
-          className={`w-full bg-gray-800 rounded-lg px-1 py-2 text-center text-xs border focus:outline-none ${
-            isDone ? 'text-gray-500 border-green-900' : 'text-white border-gray-700 focus:border-blue-500'
-          }`}
+          type="text"
+          inputMode={decimal ? 'decimal' : 'numeric'}
+          value={value}
+          onChange={(e) => onChange(e.target.value.replace(/[^0-9.]/g, ''))}
+          onFocus={(e) => e.target.select()}
+          className={`w-full bg-transparent text-center font-num font-bold text-[76px] leading-none focus:outline-none ${accent ? 'text-accent' : 'text-white'}`}
         />
+      </label>
+      <div className="flex gap-2">
+        <button onClick={() => onStep(-1)} aria-label={`הורד ${label}`} className="w-14 h-11 rounded-2xl bg-surface-2 text-white flex items-center justify-center active:bg-surface-3">
+          <Minus size={20} />
+        </button>
+        <button onClick={() => onStep(1)} aria-label={`הוסף ${label}`} className="w-14 h-11 rounded-2xl bg-surface-2 text-white flex items-center justify-center active:bg-surface-3">
+          <Plus size={20} />
+        </button>
       </div>
     </div>
   );
