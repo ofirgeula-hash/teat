@@ -41,8 +41,10 @@ interface AppState {
   addSet: (set: Omit<SessionSet, 'id' | 'completedAt'>) => void;
   updateSet: (setId: string, updates: Partial<SessionSet>) => void;
   removeSet: (setId: string) => void;
-  finishSession: () => void;
+  /** Ends the active session; returns its id, or null when it had no sets and was discarded. */
+  finishSession: () => string | null;
   cancelSession: () => void;
+  deleteSession: (id: string) => void;
 
   addBodyWeight: (log: BodyWeightLog) => void;
   deleteBodyWeight: (id: string) => void;
@@ -57,6 +59,23 @@ interface AppState {
   updateExerciseLibraryItem: (id: string, updates: Partial<ExerciseLibraryItem>) => void;
   deleteExerciseLibraryItem: (id: string) => void;
   importExercisesFromPlans: () => number;
+
+  /** Replaces all saved data with a backup produced by `exportData`. Returns false if the data isn't a backup. */
+  importData: (data: unknown) => boolean;
+}
+
+/** The parts of the store that make up a backup. */
+export const BACKUP_KEYS = [
+  'workoutTypes', 'locations', 'locationPlans', 'sessions', 'bodyWeightLogs',
+  'settings', 'exerciseLibrary', 'workoutNotes',
+] as const;
+
+export type BackupData = Pick<AppState, (typeof BACKUP_KEYS)[number]>;
+
+export function exportData(state: AppState): BackupData & { backupVersion: 1; exportedAt: string } {
+  const out = { backupVersion: 1 as const, exportedAt: new Date().toISOString() } as BackupData & { backupVersion: 1; exportedAt: string };
+  for (const k of BACKUP_KEYS) (out as Record<string, unknown>)[k] = state[k];
+  return out;
 }
 
 function s(reps: number, weight: number, rest: number): PlanSet {
@@ -337,12 +356,19 @@ export const useStore = create<AppState>()(
 
       finishSession: () => {
         const { activeSession } = get();
-        if (!activeSession) return;
+        if (!activeSession) return null;
+        if (activeSession.sets.length === 0) {
+          set({ activeSession: null });
+          return null;
+        }
         const finished = { ...activeSession, endedAt: new Date().toISOString() };
         set((s) => ({ sessions: [finished, ...s.sessions], activeSession: null }));
+        return finished.id;
       },
 
       cancelSession: () => set({ activeSession: null }),
+
+      deleteSession: (id) => set((s) => ({ sessions: s.sessions.filter((x) => x.id !== id) })),
 
       addBodyWeight: (log) =>
         set((s) => ({
@@ -412,6 +438,21 @@ export const useStore = create<AppState>()(
           locationPlans: updatedPlans,
         }));
         return newItems.length;
+      },
+
+      importData: (data) => {
+        if (!data || typeof data !== 'object') return false;
+        const d = data as Partial<BackupData>;
+        if (!Array.isArray(d.sessions) || !Array.isArray(d.workoutTypes) || !Array.isArray(d.locationPlans)) return false;
+        set((s) => {
+          const next: Partial<AppState> = {};
+          for (const k of BACKUP_KEYS) {
+            if (d[k] !== undefined) (next as Record<string, unknown>)[k] = d[k];
+          }
+          next.settings = { ...s.settings, ...(d.settings ?? {}) };
+          return next;
+        });
+        return true;
       },
     }),
     {

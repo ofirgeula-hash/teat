@@ -1,6 +1,17 @@
 import type { Metadata, Viewport } from 'next';
+import '@fontsource/rubik/hebrew-400.css';
+import '@fontsource/rubik/hebrew-500.css';
+import '@fontsource/rubik/hebrew-700.css';
+import '@fontsource/rubik/hebrew-800.css';
+import '@fontsource/rubik/latin-400.css';
+import '@fontsource/rubik/latin-500.css';
+import '@fontsource/rubik/latin-700.css';
+import '@fontsource/rubik/latin-800.css';
+import '@fontsource/barlow-condensed/latin-600.css';
+import '@fontsource/barlow-condensed/latin-700.css';
 import './globals.css';
 import BottomNav from '@/components/BottomNav';
+import BackupSync from '@/components/BackupSync';
 
 export const metadata: Metadata = {
   title: 'כושר',
@@ -14,7 +25,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: '#111827',
+  themeColor: '#0b0b0c',
   width: 'device-width',
   initialScale: 1,
   maximumScale: 1,
@@ -28,15 +39,16 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <head>
         <link rel="apple-touch-icon" href="/icons/icon-192.png" />
       </head>
-      <body className="bg-gray-950 text-white min-h-screen">
+      <body className="bg-ink text-white min-h-screen">
         <main
           className="max-w-lg mx-auto min-h-screen"
           style={{
             paddingTop: 'env(safe-area-inset-top)',
-            paddingBottom: 'calc(5rem + env(safe-area-inset-bottom))',
+            paddingBottom: 'calc(5.5rem + env(safe-area-inset-bottom))',
           }}
         >{children}</main>
         <BottomNav />
+        <BackupSync />
       </body>
     </html>
   );
