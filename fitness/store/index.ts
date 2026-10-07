@@ -37,6 +37,8 @@ interface AppState {
   deleteLocation: (id: string) => void;
 
   upsertPlan: (locationId: string, workoutTypeId: string, exercises: PlanExercise[]) => void;
+  /** Appends one exercise to a plan, creating the plan if needed. */
+  addPlanExercise: (locationId: string, workoutTypeId: string, exercise: PlanExercise) => void;
 
   startSession: (workoutTypeId: string, locationId: string) => void;
   addSet: (set: Omit<SessionSet, 'id' | 'completedAt'>) => void;
@@ -323,6 +325,11 @@ export const useStore = create<AppState>()(
           }
           return { locationPlans: [...s.locationPlans, { locationId, workoutTypeId, exercises }] };
         }),
+
+      addPlanExercise: (locationId, workoutTypeId, exercise) => {
+        const plan = get().locationPlans.find((p) => p.locationId === locationId && p.workoutTypeId === workoutTypeId);
+        get().upsertPlan(locationId, workoutTypeId, [...(plan?.exercises ?? []), exercise]);
+      },
 
       startSession: (workoutTypeId, locationId) => {
         const session: WorkoutSession = {
@@ -613,6 +620,21 @@ export const useStore = create<AppState>()(
     }
   )
 );
+
+/** A new plan entry for a library exercise: one empty set, or none for cardio/stretching. */
+export function planExerciseFromLibrary(item: ExerciseLibraryItem, restSeconds: number): PlanExercise {
+  return {
+    id: crypto.randomUUID(),
+    name: item.nameHe || item.name,
+    notes: [],
+    sets: item.untracked ? [] : [{ reps: 10, weight: 0, restSeconds }],
+    equipment: item.equipment,
+    muscleGroup: item.muscleGroup,
+    libraryId: item.id,
+    ...(item.bankId ? { bankId: item.bankId } : {}),
+    ...(item.untracked ? { untracked: true } : {}),
+  };
+}
 
 export function getLastSessionSets(
   sessions: WorkoutSession[],
