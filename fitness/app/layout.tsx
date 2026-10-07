@@ -53,6 +53,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <BackupSync />
         <LaunchChooser />
         <ServiceWorker />
+        <div className="rotate-notice fixed inset-0 z-[100] bg-ink flex-col items-center justify-center gap-3 text-center px-8">
+          <div className="text-5xl" aria-hidden="true">📱</div>
+          <div className="text-lg font-bold">סובב את הטלפון לאורך</div>
+          <div className="text-sm text-muted">האפליקציה עובדת רק במצב מאונך</div>
+        </div>
       </body>
     </html>
   );

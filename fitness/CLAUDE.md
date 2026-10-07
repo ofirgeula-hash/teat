@@ -69,6 +69,14 @@ were expanded (barbell/cable/kettlebell/bands/bodyweight; lats/middle/lower back
 workout screen marks them done with an optional free-text note (a SessionSet with reps 0, excluded
 from charts). An optional WorkoutX API key can still set a `gifUrl`, which takes precedence over photos.
 
+`planArchive` (Settings → כללי → "התחלה מחדש"): `startFresh()` copies plans, workout types, locations
+and my exercises into it, then clears plans, my exercises, sessions, body weight and notes (types,
+locations and settings stay). `restorePlanArchive()` brings the plans and exercises back. It is a
+backup key, so it also syncs to the cloud.
+
+Portrait only: `manifest.json` locks installed Android apps; iOS web apps can't be locked, so
+`.rotate-notice` in the layout covers a phone held sideways.
+
 ## Workout flow
 1. Home: tap a workout type card → navigate to `/workout/${workoutTypeId}`
 2. Workout page: no session until the first set is saved (there is no "active workout" UI). If another

@@ -14,6 +14,7 @@ import type {
   WorkoutNote,
   EquipmentType,
   ExerciseLibraryItem,
+  PlanArchive,
 } from '@/types';
 import { WORKOUT_COLORS } from '@/types';
 
@@ -27,6 +28,7 @@ interface AppState {
   activeSession: WorkoutSession | null;
   workoutNotes: WorkoutNote[];
   exerciseLibrary: ExerciseLibraryItem[];
+  planArchive: PlanArchive | null;
 
   addWorkoutType: (wt: WorkoutType) => void;
   updateWorkoutType: (id: string, updates: Partial<WorkoutType>) => void;
@@ -72,12 +74,21 @@ interface AppState {
 
   /** Replaces all saved data with a backup produced by `exportData`. Returns false if the data isn't a backup. */
   importData: (data: unknown) => boolean;
+
+  /**
+   * Start fresh: plans, workout types, locations and my exercises are kept in `planArchive`;
+   * plans, my exercises, workout history, body weight and notes are cleared.
+   * Workout types, locations and settings stay.
+   */
+  startFresh: () => void;
+  /** Brings archived plans and exercises back (replacing the current ones). Returns how many plans. */
+  restorePlanArchive: () => number;
 }
 
 /** The parts of the store that make up a backup. */
 export const BACKUP_KEYS = [
   'workoutTypes', 'locations', 'locationPlans', 'sessions', 'bodyWeightLogs',
-  'settings', 'exerciseLibrary', 'workoutNotes',
+  'settings', 'exerciseLibrary', 'workoutNotes', 'planArchive',
 ] as const;
 
 export type BackupData = Pick<AppState, (typeof BACKUP_KEYS)[number]>;
@@ -296,6 +307,7 @@ export const useStore = create<AppState>()(
       settings: { defaultRestSeconds: 90 },
       workoutNotes: [],
       exerciseLibrary: [],
+      planArchive: null,
 
       addWorkoutType: (wt) => set((s) => ({ workoutTypes: [...s.workoutTypes, wt] })),
       updateWorkoutType: (id, updates) =>
@@ -486,6 +498,39 @@ export const useStore = create<AppState>()(
           locationPlans: updatedPlans,
         }));
         return newItems.length;
+      },
+
+      startFresh: () => {
+        const { workoutTypes, locations, locationPlans, exerciseLibrary } = get();
+        set({
+          planArchive: { archivedAt: new Date().toISOString(), workoutTypes, locations, locationPlans, exerciseLibrary },
+          locationPlans: [],
+          exerciseLibrary: [],
+          sessions: [],
+          activeSession: null,
+          bodyWeightLogs: [],
+          workoutNotes: [],
+        });
+      },
+
+      restorePlanArchive: () => {
+        const { planArchive, workoutTypes, locations } = get();
+        if (!planArchive) return 0;
+        // Bring back archived workout types and locations that were deleted since.
+        const types = [...workoutTypes, ...planArchive.workoutTypes.filter((w) => !workoutTypes.some((x) => x.id === w.id))];
+        const locs = [...locations, ...planArchive.locations.filter((l) => !locations.some((x) => x.id === l.id))];
+        // Skip plans of types/locations that no longer existed when archived, and unnamed exercises.
+        const plans = planArchive.locationPlans
+          .filter((p) => types.some((w) => w.id === p.workoutTypeId) && locs.some((l) => l.id === p.locationId))
+          .map((p) => ({ ...p, exercises: p.exercises.filter((e) => e.name.trim()) }))
+          .filter((p) => p.exercises.length > 0);
+        set({
+          workoutTypes: types,
+          locations: locs,
+          locationPlans: plans,
+          exerciseLibrary: planArchive.exerciseLibrary.filter((e) => (e.nameHe || e.name).trim()),
+        });
+        return plans.length;
       },
 
       importData: (data) => {

@@ -152,6 +152,15 @@ export interface ExerciseLibraryItem {
   untracked?: boolean;
 }
 
+/** Plans set aside by "start fresh", so they can be brought back later. */
+export interface PlanArchive {
+  archivedAt: string;
+  workoutTypes: WorkoutType[];
+  locations: Location[];
+  locationPlans: LocationWorkoutPlan[];
+  exerciseLibrary: ExerciseLibraryItem[];
+}
+
 export interface WorkoutNote {
   id: string;
   title: string;

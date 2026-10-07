@@ -213,6 +213,94 @@ function GeneralSection() {
         </div>
         {importMsg && <div className="text-sm text-muted mt-3">{importMsg}</div>}
       </div>
+
+      <StartFreshCard onExport={doExport} />
+    </div>
+  );
+}
+
+// ─── Start fresh / plan archive ───────────────────────────────────────────────
+
+function StartFreshCard({ onExport }: { onExport: () => void }) {
+  const { planArchive, startFresh, restorePlanArchive } = useStore();
+  const [confirm, setConfirm] = useState<'reset' | 'restore' | null>(null);
+  const [msg, setMsg] = useState('');
+
+  // Same filter restorePlanArchive applies: plans of deleted workout types/locations don't come back.
+  const restorable = planArchive?.locationPlans.filter((p) =>
+    planArchive.workoutTypes.some((w) => w.id === p.workoutTypeId) &&
+    planArchive.locations.some((l) => l.id === p.locationId) &&
+    p.exercises.some((e) => e.name.trim()),
+  ) ?? [];
+  const archivedPlans = restorable.length;
+  const archivedExercises = restorable.reduce((n, p) => n + p.exercises.filter((e) => e.name.trim()).length, 0);
+
+  return (
+    <div className="bg-surface rounded-xl p-4 space-y-3">
+      <div>
+        <div className="font-medium text-white text-sm mb-1">התחלה מחדש</div>
+        <div className="text-xs text-muted leading-relaxed">
+          מוחק היסטוריית אימונים, שקילות, הערות, תוכניות האימון ו&quot;התרגילים שלי&quot;. סוגי האימונים, המיקומים
+          וההגדרות נשארים. התוכניות עם כל המשקלים, החזרות והדגשים נשמרות בארכיון ואפשר להחזיר אותן בלחיצה.
+        </div>
+      </div>
+
+      {planArchive && (
+        <div className="bg-surface-2 rounded-xl px-3 py-2.5 text-sm">
+          <div className="text-white">
+            בארכיון: {archivedPlans} תוכניות · {archivedExercises} תרגילים
+          </div>
+          <div className="text-xs text-faint">
+            נשמר ב־{new Date(planArchive.archivedAt).toLocaleDateString('he-IL', { day: 'numeric', month: 'long', year: 'numeric' })}
+          </div>
+        </div>
+      )}
+
+      {confirm === 'reset' ? (
+        <div className="space-y-2">
+          <div className="text-sm text-red-400">
+            בטוח? כל ההיסטוריה והשקילות יימחקו לצמיתות (גם מהגיבוי בענן, אם הוא מחובר).
+            {planArchive && ' הארכיון הקודם יוחלף בתוכניות הנוכחיות.'}
+          </div>
+          <button onClick={onExport} className="w-full bg-surface-2 text-white py-2.5 rounded-xl text-sm">
+            קודם שמור גיבוי לקובץ
+          </button>
+          <div className="flex gap-2">
+            <button onClick={() => setConfirm(null)} className="flex-1 bg-surface-2 text-white py-2.5 rounded-xl text-sm">ביטול</button>
+            <button
+              onClick={() => { startFresh(); setConfirm(null); setMsg('התחלת מחדש. התוכניות הקודמות שמורות בארכיון.'); }}
+              className="flex-1 bg-red-500/15 text-red-400 py-2.5 rounded-xl text-sm font-bold"
+            >
+              כן, התחל מחדש
+            </button>
+          </div>
+        </div>
+      ) : confirm === 'restore' ? (
+        <div className="space-y-2">
+          <div className="text-sm text-muted">התוכניות ו&quot;התרגילים שלי&quot; הנוכחיים יוחלפו באלה שבארכיון. ההיסטוריה לא משתנה.</div>
+          <div className="flex gap-2">
+            <button onClick={() => setConfirm(null)} className="flex-1 bg-surface-2 text-white py-2.5 rounded-xl text-sm">ביטול</button>
+            <button
+              onClick={() => { const n = restorePlanArchive(); setConfirm(null); setMsg(`שוחזרו ${n} תוכניות מהארכיון.`); }}
+              className="flex-1 bg-accent text-ink py-2.5 rounded-xl text-sm font-bold"
+            >
+              כן, שחזר
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div className="flex gap-2">
+          {planArchive && (
+            <button onClick={() => { setConfirm('restore'); setMsg(''); }} className="flex-1 bg-surface-2 text-white py-2.5 rounded-xl text-sm">
+              שחזר תוכניות מהארכיון
+            </button>
+          )}
+          <button onClick={() => { setConfirm('reset'); setMsg(''); }} className="flex-1 bg-surface-2 text-red-400 py-2.5 rounded-xl text-sm">
+            התחל מחדש
+          </button>
+        </div>
+      )}
+      {msg && <div className="text-sm text-good">{msg}</div>}
     </div>
   );
 }
