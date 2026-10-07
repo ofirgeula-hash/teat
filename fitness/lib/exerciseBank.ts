@@ -54,7 +54,7 @@ export function isUntracked(e: Pick<BankExercise, 'category'>): boolean {
 
 let bankPromise: Promise<BankExercise[]> | null = null;
 
-/** The bank is ~650 KB, so it's a separate chunk loaded on first use rather than part of every page. */
+/** The bank is ~320 KB, so it's a separate chunk loaded on first use rather than part of every page. */
 export function loadBank(): Promise<BankExercise[]> {
   bankPromise ??= import('@/data/exerciseBank.json').then((m) => m.default as BankExercise[]);
   return bankPromise;
