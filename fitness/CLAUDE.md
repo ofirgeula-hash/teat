@@ -43,7 +43,7 @@ GitHub: `ofirgeula-hash/teat`, deploy branch: `main` (auto-deploys to Vercel).
 - `fitness/app/analytics/page.tsx` — Charts
 - `fitness/components/BottomNav.tsx` — 5 tabs: Home, Exercises, History, Charts, Settings (hidden on `/workout`)
 - `fitness/components/RestTimer.tsx` — Rest timer overlay
-- `fitness/components/ExerciseListPicker.tsx` — shared full-screen search/grouped-by-muscle picker, used both for browsing the exercise library (in-workout "add exercise") and the built-in catalog (Settings → תרגילים)
+- `fitness/components/ExerciseListPicker.tsx` — shared full-screen search/grouped-by-muscle picker, used by the plan editor's "add exercise" (my exercises + the whole bank, with a ★ שלי filter)
 
 ## Data model (V2)
 
