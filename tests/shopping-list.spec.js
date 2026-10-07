@@ -346,3 +346,36 @@ test('כיוון RTL מוגדר נכון', async ({ page }) => {
   const lang = await page.locator('html').getAttribute('lang');
   expect(lang).toBe('he');
 });
+
+// ── Themes ────────────────────────────────────────────────────────────────────
+
+test('עיצוב ברירת המחדל הוא גיליון', async ({ page }) => {
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'sheet');
+  await page.click('#settings-btn');
+  await expect(page.locator('.theme-btn[data-theme="sheet"]')).toHaveClass(/sel/);
+});
+
+test('החלפת עיצוב נשמרת לאחר רענון', async ({ page }) => {
+  await page.click('#settings-btn');
+  await page.click('.theme-btn[data-theme="card"]');
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'card');
+  await expect(page.locator('.theme-btn[data-theme="card"]')).toHaveClass(/sel/);
+
+  await page.reload();
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'card');
+});
+
+test('הכותרת הגדולה סופרת רק פריטים פתוחים ברשימה הנוכחית', async ({ page }) => {
+  await addItem(page, 'חלב');
+  await addItem(page, 'לחם');
+  await expect(page.locator('#big-count')).toHaveText('2');
+  await expect(page.locator('#hero-sub')).toHaveText('2 פריטים לקנות');
+
+  await items(page).first().locator('.checkbox').click();
+  await expect(page.locator('#big-count')).toHaveText('1');
+  await expect(page.locator('#hero-sub')).toHaveText('1 פריט לקנות');
+
+  await page.click('.nav-tab[data-tab="yarin"]');
+  await expect(page.locator('#big-count')).toHaveText('0');
+  await expect(page.locator('#hero-sub')).toHaveText('אין משימות פתוחות');
+});

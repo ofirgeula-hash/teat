@@ -21,6 +21,12 @@
   directory rather than sharing the repo root config.
 - Fitness-specific context lives in `fitness/CLAUDE.md`.
 
+## Shopping-list themes
+`index.html` has three user-selectable themes (`sheet` default, `card`, `notes`), chosen in the
+settings sheet and stored per device in localStorage (`shopping-list-theme`). Each theme is a block
+of CSS scoped under `html[data-theme="…"]` plus its Google Font (`THEME_FONTS` in `<head>`).
+Any UI change must be checked in all three themes.
+
 ## Skills
 `.claude/skills/` holds UI/animation design skills copied from
 [emilkowalski/skills](https://github.com/emilkowalski/skills) (MIT, see
