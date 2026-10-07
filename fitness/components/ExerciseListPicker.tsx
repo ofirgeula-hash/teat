@@ -1,8 +1,9 @@
 'use client';
 import { useState } from 'react';
 import { X } from 'lucide-react';
+import { Star } from 'lucide-react';
 import type { MuscleGroup, EquipmentType } from '@/types';
-import { MUSCLE_GROUP_LABELS, EQUIPMENT_LABELS } from '@/types';
+import { ALL_EQUIPMENT, MUSCLE_GROUP_LABELS, EQUIPMENT_LABELS } from '@/types';
 
 export interface PickableExercise {
   name: string;
@@ -11,9 +12,9 @@ export interface PickableExercise {
   subMuscle?: string;
   equipment: EquipmentType[];
   gifUrl?: string;
+  /** Thumbnail when there's no GIF (bank photo). */
+  imageUrl?: string;
 }
-
-const ALL_EQUIPMENT: EquipmentType[] = ['machine', 'dumbbells', 'plates'];
 const ALL_MUSCLE_GROUPS = Object.keys(MUSCLE_GROUP_LABELS) as MuscleGroup[];
 
 export default function ExerciseListPicker<T extends PickableExercise>({
@@ -25,6 +26,7 @@ export default function ExerciseListPicker<T extends PickableExercise>({
   renderBadge,
   isUsed,
   showEquipmentFilter,
+  mineFilter,
   emptyText = 'לא נמצאו תרגילים',
 }: {
   items: T[];
@@ -35,10 +37,13 @@ export default function ExerciseListPicker<T extends PickableExercise>({
   renderBadge?: (item: T) => React.ReactNode;
   isUsed?: (item: T) => boolean;
   showEquipmentFilter?: boolean;
+  /** Adds a "★ שלי" toggle that narrows the list to the user's saved exercises. */
+  mineFilter?: { isMine: (item: T) => boolean; initiallyOn: boolean };
   emptyText?: string;
 }) {
   const [search, setSearch] = useState('');
   const [equipmentFilter, setEquipmentFilter] = useState<EquipmentType | null>(null);
+  const [mineOnly, setMineOnly] = useState(mineFilter?.initiallyOn ?? false);
 
   const q = search.trim().toLowerCase();
   let filtered = !q
@@ -51,6 +56,9 @@ export default function ExerciseListPicker<T extends PickableExercise>({
       );
   if (equipmentFilter) {
     filtered = filtered.filter((e) => e.equipment.includes(equipmentFilter));
+  }
+  if (mineFilter && mineOnly) {
+    filtered = filtered.filter(mineFilter.isMine);
   }
 
   const grouped = ALL_MUSCLE_GROUPS.reduce<Record<MuscleGroup, T[]>>((acc, mg) => {
@@ -77,15 +85,17 @@ export default function ExerciseListPicker<T extends PickableExercise>({
           {item.nameHe && <div className="text-faint text-xs">{item.name}</div>}
           {item.subMuscle && <div className="text-muted text-xs">{item.subMuscle}</div>}
         </div>
-        {item.gifUrl && (
+        {item.gifUrl ? (
           <img src={item.gifUrl} alt="" className="w-10 h-10 rounded-lg object-contain bg-white shrink-0 ml-3" />
-        )}
+        ) : item.imageUrl ? (
+          <img src={item.imageUrl} alt="" loading="lazy" className="w-12 h-10 rounded-lg object-cover bg-surface-2 shrink-0 ml-3" />
+        ) : null}
       </button>
     );
   }
 
   return (
-    <div className="fixed inset-0 z-50 bg-ink/90 flex flex-col">
+    <div className="fixed inset-0 z-50 bg-ink flex flex-col">
       <div className="flex items-center justify-between p-4 border-b border-line">
         <button onClick={onClose} className="text-muted"><X size={20} /></button>
         <span className="font-semibold text-white text-sm">{title}</span>
@@ -103,13 +113,24 @@ export default function ExerciseListPicker<T extends PickableExercise>({
           autoFocus
           className="w-full bg-surface-2 rounded-xl px-4 py-2.5 text-white text-sm border border-line focus:border-accent focus:outline-none"
         />
-        {showEquipmentFilter && (
-          <div className="flex gap-1.5 justify-end">
-            {ALL_EQUIPMENT.map((eq) => (
+        {(showEquipmentFilter || mineFilter) && (
+          <div className="flex gap-1.5 overflow-x-auto no-scrollbar">
+            {mineFilter && (
+              <button
+                onClick={() => setMineOnly((v) => !v)}
+                aria-pressed={mineOnly}
+                className={`shrink-0 flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium ${
+                  mineOnly ? 'bg-accent text-ink' : 'bg-surface-2 text-muted'
+                }`}
+              >
+                <Star size={11} className={mineOnly ? 'fill-ink' : ''} /> שלי
+              </button>
+            )}
+            {showEquipmentFilter && ALL_EQUIPMENT.map((eq) => (
               <button
                 key={eq}
                 onClick={() => setEquipmentFilter((prev) => (prev === eq ? null : eq))}
-                className={`px-2.5 py-1 rounded-full text-xs font-medium ${
+                className={`shrink-0 px-2.5 py-1 rounded-full text-xs font-medium ${
                   equipmentFilter === eq ? 'bg-accent text-ink' : 'bg-surface-2 text-muted'
                 }`}
               >

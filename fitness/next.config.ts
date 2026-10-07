@@ -9,6 +9,15 @@ const nextConfig: NextConfig = {
       { source: '/__/firebase/:path*', destination: 'https://shopping-list-db6a8.firebaseapp.com/__/firebase/:path*' },
     ];
   },
+  // Browsers must always re-check the service worker so fixes to it reach installed apps.
+  async headers() {
+    return [
+      {
+        source: '/sw.js',
+        headers: [{ key: 'Cache-Control', value: 'no-cache, no-store, must-revalidate' }],
+      },
+    ];
+  },
 };
 
 export default nextConfig;

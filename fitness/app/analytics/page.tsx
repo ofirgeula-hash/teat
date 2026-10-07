@@ -54,7 +54,8 @@ function VolumeChart() {
     ...new Set(
       sessions
         .filter((s) => s.endedAt)
-        .flatMap((s) => s.sets.map((st) => st.exerciseName))
+        // Cardio/stretching have no weight to chart.
+        .flatMap((s) => s.sets.filter((st) => !st.untracked).map((st) => st.exerciseName))
     ),
   ].filter(Boolean);
 

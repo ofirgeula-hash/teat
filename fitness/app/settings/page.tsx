@@ -3,15 +3,13 @@ import { useStore, exportData } from '@/store';
 import { useState } from 'react';
 import { Plus, Edit2, Check, X, Trash2, Search, Loader2 } from 'lucide-react';
 import type { ExerciseLibraryItem, MuscleGroup, EquipmentType } from '@/types';
-import { MUSCLE_GROUP_LABELS, EQUIPMENT_LABELS } from '@/types';
-import ExerciseListPicker from '@/components/ExerciseListPicker';
+import Link from 'next/link';
+import { ALL_EQUIPMENT, MUSCLE_GROUP_LABELS, EQUIPMENT_LABELS } from '@/types';
 import CloudBackupCard from '@/components/CloudBackupCard';
-import { EXERCISE_CATALOG } from '@/data/exerciseCatalog';
 
 type SettingsTab = 'כללי' | 'תרגילים';
 
 const ALL_MUSCLE_GROUPS = Object.keys(MUSCLE_GROUP_LABELS) as MuscleGroup[];
-const ALL_EQUIPMENT: EquipmentType[] = ['machine', 'dumbbells', 'plates'];
 
 export default function SettingsPage() {
   const [tab, setTab] = useState<SettingsTab>('כללי');
@@ -226,8 +224,6 @@ function ExerciseLibrarySection() {
   const [showAddForm, setShowAddForm] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [importMsg, setImportMsg] = useState('');
-  const [showCatalogPicker, setShowCatalogPicker] = useState(false);
-  const [justAdded, setJustAdded] = useState<string | null>(null);
 
   function handleImport() {
     const count = importExercisesFromPlans();
@@ -235,11 +231,6 @@ function ExerciseLibrarySection() {
     setTimeout(() => setImportMsg(''), 3000);
   }
 
-  function addFromCatalog(item: (typeof EXERCISE_CATALOG)[number]) {
-    addExerciseLibraryItem({ ...item, id: crypto.randomUUID() });
-    setJustAdded(item.name);
-    setTimeout(() => setJustAdded((cur) => (cur === item.name ? null : cur)), 1500);
-  }
 
   const grouped = ALL_MUSCLE_GROUPS.reduce<Record<MuscleGroup, ExerciseLibraryItem[]>>((acc, mg) => {
     acc[mg] = exerciseLibrary.filter((e) => e.muscleGroup === mg);
@@ -256,13 +247,12 @@ function ExerciseLibrarySection() {
         >
           <Plus size={16} /> הוסף תרגיל
         </button>
-        <button
-          onClick={() => setShowCatalogPicker(true)}
-          className="flex-1 bg-surface-3 text-gray-200 py-2.5 rounded-xl text-sm font-medium"
-          title="הוסף תרגיל מוכר מהקטלוג המובנה"
+        <Link
+          href="/exercises"
+          className="flex-1 bg-surface-3 text-gray-200 py-2.5 rounded-xl text-sm font-medium text-center"
         >
-          מהקטלוג
-        </button>
+          מבנק התרגילים
+        </Link>
         <button
           onClick={handleImport}
           className="flex-1 bg-surface-3 text-gray-200 py-2.5 rounded-xl text-sm font-medium"
@@ -272,22 +262,6 @@ function ExerciseLibrarySection() {
         </button>
       </div>
       {importMsg && <div className="text-center text-good text-sm">{importMsg}</div>}
-
-      {showCatalogPicker && (
-        <ExerciseListPicker
-          items={EXERCISE_CATALOG}
-          title="קטלוג תרגילים"
-          onSelect={addFromCatalog}
-          onClose={() => setShowCatalogPicker(false)}
-          renderBadge={(item) =>
-            justAdded === item.name ? (
-              <span className="text-good text-xs">✓ נוסף</span>
-            ) : exerciseLibrary.some((e) => e.name === item.name) ? (
-              <span className="text-muted text-xs">בספרייה</span>
-            ) : null
-          }
-        />
-      )}
 
       {(showAddForm && !editId) && (
         <ExerciseForm
@@ -469,14 +443,19 @@ function ExerciseForm({
         const map: Record<string, MuscleGroup> = {
           chest: 'chest', back: 'back', shoulders: 'shoulders', biceps: 'biceps',
           triceps: 'triceps', quads: 'quads', hamstrings: 'hamstrings', calves: 'calves',
-          abs: 'abs', core: 'abs', abductors: 'adductors', adductors: 'adductors', traps: 'traps',
+          abs: 'abs', core: 'abs', abductors: 'abductors', adductors: 'adductors', traps: 'traps',
+          glutes: 'glutes', lats: 'lats', 'upper back': 'middle_back', forearms: 'forearms', neck: 'neck',
         };
         const mg = map[raw];
         if (mg) setMuscleGroup(mg);
         if (hit.target && hit.bodyPart && hit.target !== hit.bodyPart) setSubMuscle(hit.target);
       }
       if (hit.equipment) {
-        const eqMap: Record<string, EquipmentType> = { machine: 'machine', dumbbell: 'dumbbells', barbell: 'plates', 'ez barbell': 'plates' };
+        const eqMap: Record<string, EquipmentType> = {
+          machine: 'machine', 'leverage machine': 'machine', 'smith machine': 'machine', dumbbell: 'dumbbells',
+          barbell: 'barbell', 'ez barbell': 'barbell', cable: 'cable', kettlebell: 'kettlebell', band: 'bands',
+          'resistance band': 'bands', 'body weight': 'bodyweight',
+        };
         const mapped = (Array.isArray(hit.equipment) ? hit.equipment : [hit.equipment])
           .map((e: string) => eqMap[e.toLowerCase()])
           .filter(Boolean) as EquipmentType[];
@@ -549,7 +528,7 @@ function ExerciseForm({
         />
       </div>
 
-      <div className="flex gap-1.5 justify-end">
+      <div className="flex gap-1.5 justify-end flex-wrap">
         {ALL_EQUIPMENT.map((eq) => (
           <button
             key={eq}

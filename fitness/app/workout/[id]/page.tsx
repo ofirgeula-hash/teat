@@ -1,13 +1,16 @@
 'use client';
+import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
-import { useStore } from '@/store';
+import { useStore, planExerciseFromLibrary } from '@/store';
 import { getPreviousSets, formatKg } from '@/lib/stats';
 import { useEffect, useState } from 'react';
-import type { SessionSet, PlanExercise, PlanSet, EquipmentType, MuscleGroup } from '@/types';
-import { EQUIPMENT_LABELS, MUSCLE_GROUP_LABELS } from '@/types';
+import type { SessionSet, PlanExercise, PlanSet, EquipmentType, MuscleGroup, ExerciseLibraryItem } from '@/types';
+import { ALL_EQUIPMENT, EQUIPMENT_LABELS, MUSCLE_GROUP_LABELS } from '@/types';
 import RestTimer from '@/components/RestTimer';
-import ExerciseListPicker from '@/components/ExerciseListPicker';
-import { ChevronLeft, ChevronRight, ExternalLink, Edit2, Check, X, Plus, Minus, Trash2, Timer, History, CalendarCheck } from 'lucide-react';
+import ExerciseListPicker, { type PickableExercise } from '@/components/ExerciseListPicker';
+import ExerciseImage from '@/components/ExerciseImage';
+import { bankImage, loadBank, saveBankExercise, type BankExercise } from '@/lib/exerciseBank';
+import { ChevronLeft, ChevronRight, ExternalLink, Edit2, Check, X, Plus, Minus, Trash2, Timer, History, CalendarCheck, Info } from 'lucide-react';
 
 function formatClock(totalSeconds: number) {
   const h = Math.floor(totalSeconds / 3600);
@@ -21,7 +24,8 @@ function isUrl(text: string) {
   return text.startsWith('http://') || text.startsWith('https://');
 }
 
-const ALL_EQUIPMENT: EquipmentType[] = ['machine', 'dumbbells', 'plates'];
+/** A row in the "add exercise" picker: one of my saved exercises, or anything else from the bank. */
+type PickerItem = PickableExercise & { library?: ExerciseLibraryItem; bank?: BankExercise };
 
 const MUSCLE_KEYWORDS: Array<{ keywords: string[]; group: MuscleGroup }> = [
   { keywords: ['חזה', 'פרפר', 'מקבילים', 'שכיבות סמיכה', 'bench', 'פולי עליון עם חבל', 'סמית'], group: 'chest' },
@@ -79,6 +83,9 @@ export default function WorkoutPage() {
   const [confirmDeleteLoc, setConfirmDeleteLoc] = useState<string | null>(null);
   const [showAddLoc, setShowAddLoc] = useState(false);
   const [showExPicker, setShowExPicker] = useState(false);
+  const [pickerBank, setPickerBank] = useState<BankExercise[] | null>(null);
+  // Free-text note for a cardio/stretching exercise, saved with its "done" mark.
+  const [untrackedNotes, setUntrackedNotes] = useState<Record<string, string>>({});
 
   // Inline notes editing in view mode
   const [editingNotesExId, setEditingNotesExId] = useState<string | null>(null);
@@ -317,24 +324,35 @@ export default function WorkoutPage() {
   }
 
   function addExercise() {
-    if (exerciseLibrary.length > 0) {
-      setShowExPicker(true);
-    } else {
-      setLocalExs((list) => [...list, { id: crypto.randomUUID(), name: '', notes: [], sets: [{ reps: 10, weight: 0, restSeconds: 90 }], equipment: [] }]);
-    }
+    setShowExPicker(true);
+    loadBank().then(setPickerBank);
   }
 
-  function addExerciseFromLibrary(libItem: import('@/types').ExerciseLibraryItem) {
-    setLocalExs((list) => [...list, {
-      id: crypto.randomUUID(),
-      name: libItem.nameHe || libItem.name,
-      notes: [],
-      sets: [{ reps: 10, weight: 0, restSeconds: settings.defaultRestSeconds }],
-      equipment: libItem.equipment,
-      muscleGroup: libItem.muscleGroup,
-      libraryId: libItem.id,
-    }]);
+  function pickExercise(item: PickerItem) {
+    const libItem = item.library ?? (item.bank ? saveBankExercise(item.bank) : undefined);
+    if (!libItem) return;
+    setLocalExs((list) => [...list, planExerciseFromLibrary(libItem, settings.defaultRestSeconds)]);
     setShowExPicker(false);
+  }
+
+  function pickerItems(): PickerItem[] {
+    const saved = new Set(exerciseLibrary.map((l) => l.bankId).filter(Boolean));
+    const mine: PickerItem[] = exerciseLibrary.map((l) => ({
+      ...l,
+      imageUrl: l.bankId ? bankImage(l.bankId) : undefined,
+      library: l,
+    }));
+    const rest: PickerItem[] = (pickerBank ?? [])
+      .filter((b) => !saved.has(b.id))
+      .map((b) => ({
+        name: b.name,
+        nameHe: b.nameHe,
+        muscleGroup: b.primary[0],
+        equipment: [b.equipment],
+        imageUrl: bankImage(b.id),
+        bank: b,
+      }));
+    return [...mine, ...rest];
   }
 
   function removeExercise(idx: number) {
@@ -451,10 +469,21 @@ export default function WorkoutPage() {
     if (otherSession || !currentEx || !current) return;
     const idx = currentSetIdx;
     const key = draftKey(currentEx, current.eq, idx);
+    const existing = current.done.get(idx);
+    if (currentEx.untracked) {
+      const note = (untrackedNotes[currentEx.id] ?? existing?.note ?? '').trim() || undefined;
+      if (existing) {
+        store.updateSet(existing.id, { note });
+      } else {
+        ensureSession();
+        store.addSet({ exerciseId: currentEx.id, exerciseName: currentEx.name, setNumber: 0, weight: 0, reps: 0, rpe: null, muscleGroup: currentEx.muscleGroup, untracked: true, note });
+      }
+      advanceFrom(currentEx);
+      return;
+    }
     const weight = parseFloat(draftWeight) || 0;
     const reps = parseInt(draftReps) || 0;
     if (reps <= 0) return;
-    const existing = current.done.get(idx);
     const equipment = current.hasDual ? current.eq : getActiveEquipment(currentEx);
     if (existing) {
       store.updateSet(existing.id, { weight, reps });
@@ -478,12 +507,17 @@ export default function WorkoutPage() {
       setSelectedSet((s) => ({ ...s, [currentEx.id]: nextIdx }));
       return;
     }
+    advanceFrom(currentEx);
+  }
+
+  /** Moves on to the next unfinished exercise after `ex` is done. */
+  function advanceFrom(ex: PlanExercise) {
     setSelectedSet((s) => {
       const next = { ...s };
-      delete next[currentEx.id];
+      delete next[ex.id];
       return next;
     });
-    const order = exercises.findIndex((e) => e.id === currentEx.id);
+    const order = exercises.findIndex((e) => e.id === ex.id);
     const rest = [...exercises.slice(order + 1), ...exercises.slice(0, order)];
     const nextEx = rest.find((e) => !exerciseState(e).complete);
     if (nextEx) setCurrentExId(nextEx.id);
@@ -736,7 +770,7 @@ export default function WorkoutPage() {
                   </div>
 
                   {/* Equipment toggles */}
-                  <div className="flex gap-1.5 justify-end">
+                  <div className="flex gap-1.5 justify-end flex-wrap">
                     {ALL_EQUIPMENT.map((eq) => {
                       const selected = ex.equipment?.includes(eq) ?? false;
                       const disabled = !selected && (ex.equipment?.length ?? 0) >= 2;
@@ -792,6 +826,9 @@ export default function WorkoutPage() {
                   </div>
 
                   {/* Sets */}
+                  {ex.untracked ? (
+                    <div className="text-xs text-faint">אירובי / מתיחה: בלי סטים, רק &quot;בוצע&quot; והערה</div>
+                  ) : (
                   <div className="space-y-1">
                     <div className="grid grid-cols-5 gap-1 text-xs text-muted text-center">
                       <div>סט</div><div>ק״ג</div><div>חז&apos;</div><div>מנוחה</div><div></div>
@@ -817,6 +854,7 @@ export default function WorkoutPage() {
                       <Plus size={12} /> הוסף סט
                     </button>
                   </div>
+                  )}
                 </div>
               );
             })}
@@ -865,8 +903,14 @@ export default function WorkoutPage() {
                     <div className="flex-1 min-w-0">
                       <div className={`font-semibold truncate ${st.complete ? 'text-muted' : 'text-white'}`}>{ex.name}</div>
                       <div className="text-xs text-muted mt-0.5">
-                        {st.done.size}/{st.total} סטים
-                        {lastDone && <> · אחרון {formatKg(lastDone.weight)}×{lastDone.reps}</>}
+                        {ex.untracked ? (
+                          st.complete ? 'בוצע' : 'אירובי / מתיחה'
+                        ) : (
+                          <>
+                            {st.done.size}/{st.total} סטים
+                            {lastDone && <> · אחרון {formatKg(lastDone.weight)}×{lastDone.reps}</>}
+                          </>
+                        )}
                       </div>
                     </div>
                     <ChevronLeft size={18} className="text-faint shrink-0" />
@@ -876,6 +920,7 @@ export default function WorkoutPage() {
 
               const notes = getExNotes(ex);
               const libItem = ex.libraryId ? exerciseLibrary.find((l) => l.id === ex.libraryId) : undefined;
+              const bankId = ex.bankId ?? libItem?.bankId;
               const prevSet = st.previous[currentSetIdx];
               const savedHere = st.done.get(currentSetIdx);
               const weightNum = parseFloat(draftWeight) || 0;
@@ -889,7 +934,7 @@ export default function WorkoutPage() {
                     <h2 className="text-2xl font-extrabold leading-tight text-white">{ex.name}</h2>
                   </div>
 
-                  {canCopyPrev && (
+                  {canCopyPrev && !ex.untracked && (
                     <button
                       onClick={() => copyPrevious(ex, st)}
                       className="w-full flex items-center gap-3 bg-surface-2 rounded-2xl px-4 py-3 text-right active:bg-surface-3"
@@ -921,10 +966,17 @@ export default function WorkoutPage() {
                     </div>
                   )}
 
-                  {libItem?.gifUrl && (
+                  {libItem?.gifUrl ? (
                     <div className="flex justify-center">
                       <img src={libItem.gifUrl} alt={libItem.name} className="w-44 h-44 object-contain rounded-2xl bg-white" />
                     </div>
+                  ) : bankId ? (
+                    <ExerciseImage bankId={bankId} alt={ex.name} animate className="h-44 rounded-2xl" />
+                  ) : null}
+                  {bankId && (
+                    <Link href={`/exercises/${encodeURIComponent(bankId)}`} className="flex items-center gap-1.5 text-sm text-muted -mt-1">
+                      <Info size={15} className="text-accent" /> איך מבצעים ושרירי מטרה
+                    </Link>
                   )}
 
                   {editingNotesExId === ex.id ? (
@@ -977,6 +1029,24 @@ export default function WorkoutPage() {
                     </button>
                   )}
 
+                  {ex.untracked ? (
+                    <div className="space-y-2">
+                      {st.complete && (
+                        <div className="flex items-center gap-1.5 text-good text-sm font-medium">
+                          <Check size={16} strokeWidth={3} /> בוצע
+                        </div>
+                      )}
+                      <textarea
+                        value={untrackedNotes[ex.id] ?? st.done.get(0)?.note ?? ''}
+                        onChange={(e) => setUntrackedNotes((n) => ({ ...n, [ex.id]: e.target.value }))}
+                        rows={2}
+                        placeholder="הערה (לא חובה): זמן, מרחק, איך הרגיש…"
+                        aria-label="הערה לתרגיל"
+                        className="w-full bg-surface-2 rounded-2xl px-4 py-3 text-base text-white border border-line focus:border-accent focus:outline-none resize-none"
+                      />
+                    </div>
+                  ) : (
+                  <>
                   <div className="flex items-baseline justify-between pt-1">
                     <div className="text-base font-bold text-white">
                       סט {currentSetIdx + 1} <span className="text-muted font-medium">מתוך {st.total}</span>
@@ -1042,6 +1112,8 @@ export default function WorkoutPage() {
                   {savedHere && (
                     <div className="text-center text-xs text-faint">הסט הזה כבר נשמר — שינוי יעדכן אותו</div>
                   )}
+                  </>
+                  )}
                 </section>
               );
             })}
@@ -1071,7 +1143,9 @@ export default function WorkoutPage() {
               className="flex-1 h-16 rounded-full bg-accent text-ink text-lg font-extrabold flex items-center justify-center gap-2 active:scale-[0.98] transition-transform"
             >
               <Check size={22} strokeWidth={3} />
-              {current?.done.has(currentSetIdx) ? 'עדכן סט' : 'סיימתי סט'}
+              {currentEx.untracked
+                ? (current?.complete ? 'עדכן הערה' : 'בוצע')
+                : current?.done.has(currentSetIdx) ? 'עדכן סט' : 'סיימתי סט'}
             </button>
             <button
               onClick={() => setRestTimer({ seconds: currentRest })}
@@ -1156,11 +1230,12 @@ export default function WorkoutPage() {
 
       {showExPicker && (
         <ExerciseListPicker
-          items={exerciseLibrary}
+          items={pickerItems()}
           title="בחר תרגיל"
           showEquipmentFilter
-          isUsed={(item) => localExs.some((e) => e.libraryId === item.id)}
-          onSelect={addExerciseFromLibrary}
+          mineFilter={{ isMine: (item) => !!item.library, initiallyOn: exerciseLibrary.length > 0 }}
+          isUsed={(item) => localExs.some((e) => (item.library && e.libraryId === item.library.id) || (!!item.bank && e.bankId === item.bank.id))}
+          onSelect={pickExercise}
           headerAction={{
             label: '+ ידני',
             onClick: () => {

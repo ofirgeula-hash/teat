@@ -13,6 +13,7 @@ import './globals.css';
 import BottomNav from '@/components/BottomNav';
 import BackupSync from '@/components/BackupSync';
 import LaunchChooser from '@/components/LaunchChooser';
+import ServiceWorker from '@/components/ServiceWorker';
 
 export const metadata: Metadata = {
   title: 'כושר',
@@ -51,6 +52,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <BottomNav />
         <BackupSync />
         <LaunchChooser />
+        <ServiceWorker />
       </body>
     </html>
   );

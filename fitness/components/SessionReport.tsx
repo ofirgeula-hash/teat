@@ -94,7 +94,12 @@ export default function SessionReport({ sessionId, mode }: SessionReportProps) {
                 )}
               </div>
               <div className="flex flex-wrap gap-2">
-                {ex.sets.map((s) => (
+                {ex.sets.map((s) => s.untracked ? (
+                  <span key={s.id} className="bg-surface-2 rounded-2xl px-3 py-1.5 text-sm">
+                    <span className="text-good font-medium">✓ בוצע</span>
+                    {s.note && <span className="text-muted"> · {s.note}</span>}
+                  </span>
+                ) : (
                   <span key={s.id} className="bg-surface-2 rounded-full px-3 py-1.5 text-sm">
                     <span className="font-num font-bold text-base">{formatKg(s.weight)}</span>
                     <span className="text-muted"> × </span>
