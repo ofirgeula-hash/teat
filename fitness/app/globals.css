@@ -69,3 +69,14 @@ input[type="number"]::-webkit-inner-spin-button {
 @media (prefers-reduced-motion: reduce) {
   .frame-flip { animation: none; opacity: 0; }
 }
+
+/* The app is portrait-only. Installed Android apps lock via the manifest; iOS can't be locked
+   from a web page, so a phone held sideways gets this notice instead of a squashed layout. */
+.rotate-notice {
+  display: none;
+}
+@media (orientation: landscape) and (max-height: 520px) {
+  .rotate-notice {
+    display: flex;
+  }
+}
