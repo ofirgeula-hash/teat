@@ -15,7 +15,7 @@ export function sessionMinutes(session: WorkoutSession): number {
 
 export function finishedSessions(sessions: WorkoutSession[]): WorkoutSession[] {
   return sessions
-    .filter((s) => s.endedAt && s.sets.length > 0)
+    .filter((s) => s.endedAt)
     .sort((a, b) => new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime());
 }
 

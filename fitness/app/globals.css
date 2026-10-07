@@ -45,3 +45,15 @@ input[type="number"]::-webkit-inner-spin-button {
 .no-scrollbar {
   scrollbar-width: none;
 }
+
+/* Launch chooser: content settles in from slightly below. */
+@keyframes chooser-in {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: none; }
+}
+.chooser-in {
+  animation: chooser-in 260ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+@media (prefers-reduced-motion: reduce) {
+  .chooser-in { animation: none; }
+}

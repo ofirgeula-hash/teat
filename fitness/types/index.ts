@@ -6,12 +6,20 @@ export const EQUIPMENT_LABELS: Record<EquipmentType, string> = {
   plates: 'פלטות',
 };
 
+export type WorkoutKind = 'full' | 'split';
+
 export interface WorkoutType {
   id: string;
   name: string;
   emoji: string;
+  /** Used for the calendar and charts. */
   color: string;
+  /** Full-body vs. split; drives the launch chooser. Missing means split. */
+  kind?: WorkoutKind;
 }
+
+/** Distinct, dark-theme-friendly colors handed out to workout types. */
+export const WORKOUT_COLORS = ['#ff6b1a', '#3b82f6', '#22c55e', '#a855f7', '#eab308', '#ec4899', '#14b8a6', '#ef4444'];
 
 export interface Location {
   id: string;

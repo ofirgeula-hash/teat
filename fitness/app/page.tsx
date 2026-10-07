@@ -1,15 +1,15 @@
 'use client';
-import { useStore } from '@/store';
+import { useStore, nextWorkoutColor } from '@/store';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
-import type { WorkoutType } from '@/types';
-import { Weight, Plus, Edit2, Check, X, Trash2, ChevronLeft } from 'lucide-react';
+import type { WorkoutKind, WorkoutType } from '@/types';
+import { WORKOUT_COLORS } from '@/types';
+import { Weight, Plus, Edit2, Check, X, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import { finishedSessions, workoutsThisWeek, weekStreak } from '@/lib/stats';
 import WeekRing from '@/components/WeekRing';
 
 export default function HomePage() {
-  const { workoutTypes, sessions, activeSession, settings, addWorkoutType } = useStore();
+  const { workoutTypes, sessions, settings, addWorkoutType } = useStore();
   const router = useRouter();
   const [now] = useState(() => Date.now());
   const [showAddWt, setShowAddWt] = useState(false);
@@ -20,11 +20,16 @@ export default function HomePage() {
   const thisWeek = workoutsThisWeek(sessions, now);
   const streak = weekStreak(sessions, goal, now);
   const done = finishedSessions(sessions);
-  const activeType = activeSession ? workoutTypes.find((w) => w.id === activeSession.workoutTypeId) : undefined;
 
   function addWt() {
     if (!newWtName.trim()) return;
-    addWorkoutType({ id: crypto.randomUUID(), name: newWtName.trim(), emoji: newWtEmoji, color: '#ff6b1a' });
+    addWorkoutType({
+      id: crypto.randomUUID(),
+      name: newWtName.trim(),
+      emoji: newWtEmoji,
+      color: nextWorkoutColor(workoutTypes.map((w) => w.color)),
+      kind: 'split',
+    });
     setNewWtName('');
     setNewWtEmoji('🏋️');
     setShowAddWt(false);
@@ -56,19 +61,6 @@ export default function HomePage() {
         </div>
       </section>
 
-      {activeSession && activeType && (
-        <Link
-          href={`/workout/${activeType.id}`}
-          className="flex items-center gap-3 bg-accent text-ink rounded-[22px] px-5 py-4"
-        >
-          <div className="flex-1">
-            <div className="text-sm font-medium opacity-80">אימון פעיל</div>
-            <div className="text-lg font-extrabold">{activeType.name} · {activeSession.sets.length} סטים</div>
-          </div>
-          <span className="font-bold">המשך</span>
-          <ChevronLeft size={20} />
-        </Link>
-      )}
 
       <div>
         <h2 className="text-sm text-muted font-medium mb-3">בחר אימון</h2>
@@ -135,10 +127,12 @@ function WorkoutCard({ wt, daysAgo, onPress }: { wt: WorkoutType; daysAgo: numbe
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState(wt.name);
   const [emoji, setEmoji] = useState(wt.emoji);
+  const [kind, setKind] = useState<WorkoutKind>(wt.kind ?? 'split');
+  const [color, setColor] = useState(wt.color);
   const [confirmDelete, setConfirmDelete] = useState(false);
 
   function save() {
-    updateWorkoutType(wt.id, { name: name.trim() || wt.name, emoji: emoji || wt.emoji });
+    updateWorkoutType(wt.id, { name: name.trim() || wt.name, emoji: emoji || wt.emoji, kind, color });
     setEditing(false);
     setConfirmDelete(false);
   }
@@ -146,13 +140,15 @@ function WorkoutCard({ wt, daysAgo, onPress }: { wt: WorkoutType; daysAgo: numbe
   function cancelEdit() {
     setName(wt.name);
     setEmoji(wt.emoji);
+    setKind(wt.kind ?? 'split');
+    setColor(wt.color);
     setEditing(false);
     setConfirmDelete(false);
   }
 
   if (editing) {
     return (
-      <div className="bg-surface rounded-[22px] p-3 flex flex-col gap-2">
+      <div className="bg-surface rounded-[22px] p-3 flex flex-col gap-2.5 col-span-2">
         <div className="flex gap-2">
           <input
             value={emoji}
@@ -167,6 +163,32 @@ function WorkoutCard({ wt, daysAgo, onPress }: { wt: WorkoutType; daysAgo: numbe
             autoFocus
             className="flex-1 bg-surface-2 rounded px-2 py-1 text-white text-sm border border-accent focus:outline-none"
           />
+        </div>
+        <div className="grid grid-cols-2 gap-1 bg-surface-2 rounded-xl p-1" role="radiogroup" aria-label="סוג אימון">
+          {(['full', 'split'] as const).map((k) => (
+            <button
+              key={k}
+              role="radio"
+              aria-checked={kind === k}
+              onClick={() => setKind(k)}
+              className={`py-2 rounded-lg text-sm font-bold transition-colors ${kind === k ? 'bg-white text-ink' : 'text-muted'}`}
+            >
+              {k === 'full' ? 'פול באדי' : 'חלוקה'}
+            </button>
+          ))}
+        </div>
+        <div className="flex gap-2 justify-between" role="radiogroup" aria-label="צבע בלוח השנה">
+          {WORKOUT_COLORS.map((c) => (
+            <button
+              key={c}
+              role="radio"
+              aria-checked={color === c}
+              aria-label={`צבע ${c}`}
+              onClick={() => setColor(c)}
+              className={`w-7 h-7 rounded-full ${color === c ? 'ring-2 ring-white ring-offset-2 ring-offset-surface' : ''}`}
+              style={{ background: c }}
+            />
+          ))}
         </div>
         {confirmDelete ? (
           <div className="flex items-center gap-2 justify-end">
@@ -192,7 +214,11 @@ function WorkoutCard({ wt, daysAgo, onPress }: { wt: WorkoutType; daysAgo: numbe
         onClick={onPress}
         className="w-full bg-surface rounded-[22px] p-4 text-right flex flex-col gap-3 active:scale-[0.97] transition-transform min-h-[120px]"
       >
-        <div className="text-3xl">{wt.emoji}</div>
+        <div className="flex items-center gap-2">
+          <span className="text-3xl">{wt.emoji}</span>
+          <span className="w-2 h-2 rounded-full" style={{ background: wt.color }} aria-hidden />
+          {wt.kind === 'full' && <span className="text-[10px] font-bold text-muted bg-surface-2 rounded-full px-2 py-0.5">פול באדי</span>}
+        </div>
         <div className="font-bold text-white text-base leading-tight">{wt.name}</div>
         <div className={`text-xs ${daysAgo !== null && daysAgo >= 7 ? 'text-accent' : 'text-muted'}`}>
           {daysAgo === null ? 'עוד לא בוצע' : daysAgo === 0 ? 'בוצע היום' : daysAgo === 1 ? 'אתמול' : `לפני ${daysAgo} ימים`}

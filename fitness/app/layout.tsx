@@ -12,6 +12,7 @@ import '@fontsource/barlow-condensed/latin-700.css';
 import './globals.css';
 import BottomNav from '@/components/BottomNav';
 import BackupSync from '@/components/BackupSync';
+import LaunchChooser from '@/components/LaunchChooser';
 
 export const metadata: Metadata = {
   title: 'כושר',
@@ -49,6 +50,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         >{children}</main>
         <BottomNav />
         <BackupSync />
+        <LaunchChooser />
       </body>
     </html>
   );
