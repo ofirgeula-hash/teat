@@ -73,6 +73,7 @@
       color: var(--text);
       overscroll-behavior: none;
       -webkit-tap-highlight-color: transparent;
+      overflow-x: clip; /* nothing may widen the page: it would let iOS zoom it out */
     }
 
     #app {
@@ -456,7 +457,7 @@
       padding-bottom: calc(20px + var(--safe-bot));
       z-index: 101;
       transition: transform 320ms var(--ease-drawer);
-      max-height: 88dvh; overflow-y: auto; overscroll-behavior: contain;
+      max-height: 88dvh; overflow-y: auto; overflow-x: hidden; overscroll-behavior: contain;
     }
     .settings-panel.open { transform: translateX(-50%) translateY(0); }
 
@@ -501,6 +502,13 @@
       direction: ltr; text-align: center;
     }
     .time-input:focus { border-color: var(--accent); outline: none; }
+    /* iOS Safari gives time inputs a native min-width and ignores width:100%, so the
+       field stuck out of the sheet and made the whole page zoomable sideways */
+    .time-input {
+      -webkit-appearance: none; appearance: none;
+      display: block; min-width: 0; max-width: 100%; min-height: 52px;
+    }
+    .time-input::-webkit-date-and-time-value { text-align: center; }
 
     .day-selector { display: flex; gap: 5px; }
     .day-btn {
