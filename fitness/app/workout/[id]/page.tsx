@@ -7,7 +7,7 @@ import type { SessionSet, PlanExercise, PlanSet, EquipmentType, MuscleGroup } fr
 import { EQUIPMENT_LABELS, MUSCLE_GROUP_LABELS } from '@/types';
 import RestTimer from '@/components/RestTimer';
 import ExerciseListPicker from '@/components/ExerciseListPicker';
-import { ChevronLeft, ChevronRight, ExternalLink, Edit2, Check, X, Plus, Minus, Trash2, Timer } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ExternalLink, Edit2, Check, X, Plus, Minus, Trash2, Timer, History, CalendarCheck } from 'lucide-react';
 
 function formatClock(totalSeconds: number) {
   const h = Math.floor(totalSeconds / 3600);
@@ -51,7 +51,12 @@ export default function WorkoutPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const store = useStore();
-  const { workoutTypes, locations, locationPlans, sessions, activeSession, settings, exerciseLibrary } = store;
+  const { workoutTypes, locations, locationPlans, sessions, settings, exerciseLibrary } = store;
+  // The in-progress workout only exists once a set is saved, and only counts on its own page.
+  const activeSession = store.activeSession?.workoutTypeId === id ? store.activeSession : null;
+  const otherSession = store.activeSession && store.activeSession.workoutTypeId !== id && store.activeSession.sets.length > 0
+    ? store.activeSession
+    : null;
 
   const workoutType = workoutTypes.find((w) => w.id === id);
   const [selectedLocationId, setSelectedLocationId] = useState('');
@@ -101,7 +106,6 @@ export default function WorkoutPage() {
     const firstLocId = state.locations[0]?.id ?? '';
     setSelectedLocationId(firstLocId);
     if (firstLocId) {
-      state.startSession(id, firstLocId);
       const plan = state.locationPlans.find(
         (p) => p.locationId === firstLocId && p.workoutTypeId === id
       );
@@ -133,7 +137,7 @@ export default function WorkoutPage() {
       <div className="min-h-screen bg-ink flex flex-col items-center justify-center gap-4 p-4">
         <div className="text-muted text-center">אימון לא נמצא</div>
         <button
-          onClick={() => { store.cancelSession(); router.push('/'); }}
+          onClick={() => router.push('/')}
           className="bg-surface-2 text-white px-6 py-3 rounded-xl text-sm font-medium"
         >
           חזרה לדף הבית
@@ -438,8 +442,13 @@ export default function WorkoutPage() {
     return `${ex.id}|${eq ?? ''}|${idx}`;
   }
 
+  /** Starts this page's workout on the first saved set. */
+  function ensureSession() {
+    if (!activeSession) store.startSession(id, selectedLocationId);
+  }
+
   function saveCurrentSet() {
-    if (!activeSession || !currentEx || !current) return;
+    if (otherSession || !currentEx || !current) return;
     const idx = currentSetIdx;
     const key = draftKey(currentEx, current.eq, idx);
     const weight = parseFloat(draftWeight) || 0;
@@ -450,6 +459,7 @@ export default function WorkoutPage() {
     if (existing) {
       store.updateSet(existing.id, { weight, reps });
     } else {
+      ensureSession();
       store.addSet({ exerciseId: currentEx.id, exerciseName: currentEx.name, setNumber: idx, weight, reps, rpe: null, equipment, muscleGroup: currentEx.muscleGroup });
     }
     setDrafts((d) => {
@@ -474,6 +484,33 @@ export default function WorkoutPage() {
       return next;
     });
     const order = exercises.findIndex((e) => e.id === currentEx.id);
+    const rest = [...exercises.slice(order + 1), ...exercises.slice(0, order)];
+    const nextEx = rest.find((e) => !exerciseState(e).complete);
+    if (nextEx) setCurrentExId(nextEx.id);
+  }
+
+  /** Saves every still-open set of `ex` with exactly what was done last time. */
+  function copyPrevious(ex: PlanExercise, st: ReturnType<typeof exerciseState>) {
+    if (otherSession) return;
+    const equipment = st.hasDual ? st.eq : getActiveEquipment(ex);
+    let copied = 0;
+    st.previous.forEach((prev, i) => {
+      if (st.done.has(i) || prev.reps <= 0) return;
+      if (copied === 0) ensureSession();
+      store.addSet({ exerciseId: ex.id, exerciseName: ex.name, setNumber: i, weight: prev.weight, reps: prev.reps, rpe: null, equipment, muscleGroup: ex.muscleGroup });
+      copied++;
+    });
+    if (copied === 0) return;
+    setDrafts((d) => Object.fromEntries(Object.entries(d).filter(([k]) => !k.startsWith(`${ex.id}|`))));
+    setSelectedSet((s) => {
+      const next = { ...s };
+      delete next[ex.id];
+      return next;
+    });
+    // Move on unless some plan sets had no previous value to copy.
+    const coversAll = Array.from({ length: st.total }).every((_, i) => st.done.has(i) || (st.previous[i]?.reps ?? 0) > 0);
+    if (!coversAll) return;
+    const order = exercises.findIndex((e) => e.id === ex.id);
     const rest = [...exercises.slice(order + 1), ...exercises.slice(0, order)];
     const nextEx = rest.find((e) => !exerciseState(e).complete);
     if (nextEx) setCurrentExId(nextEx.id);
@@ -506,7 +543,7 @@ export default function WorkoutPage() {
   }
 
   function discard() {
-    store.cancelSession();
+    if (activeSession) store.cancelSession();
     router.push('/');
   }
 
@@ -843,6 +880,7 @@ export default function WorkoutPage() {
               const savedHere = st.done.get(currentSetIdx);
               const weightNum = parseFloat(draftWeight) || 0;
               const diff = prevSet ? Math.round((weightNum - prevSet.weight) * 10) / 10 : null;
+              const canCopyPrev = !otherSession && st.previous.some((p, i) => !st.done.has(i) && p.reps > 0);
 
               return (
                 <section key={ex.id} aria-label={ex.name} className="bg-surface rounded-[28px] p-5 space-y-4">
@@ -850,6 +888,22 @@ export default function WorkoutPage() {
                     <div className="text-xs text-muted font-medium">תרגיל {exIdx + 1} מתוך {exercises.length}</div>
                     <h2 className="text-2xl font-extrabold leading-tight text-white">{ex.name}</h2>
                   </div>
+
+                  {canCopyPrev && (
+                    <button
+                      onClick={() => copyPrevious(ex, st)}
+                      className="w-full flex items-center gap-3 bg-surface-2 rounded-2xl px-4 py-3 text-right active:bg-surface-3"
+                    >
+                      <History size={18} className="text-accent shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm font-bold text-white">כמו בפעם הקודמת</div>
+                        <div className="text-xs text-muted truncate font-num tracking-wide" dir="ltr">
+                          {st.previous.map((p) => `${formatKg(p.weight)}×${p.reps}`).join('  ·  ')}
+                        </div>
+                      </div>
+                      <span className="text-xs text-accent font-bold shrink-0">מלא הכל</span>
+                    </button>
+                  )}
 
                   {st.hasDual && (
                     <div className="flex gap-2">
@@ -995,9 +1049,10 @@ export default function WorkoutPage() {
             {exercises.length > 0 && (
               <button
                 onClick={() => setShowFinish(true)}
-                className="w-full bg-surface text-white py-4 rounded-2xl font-bold text-base mt-2"
+                className="w-full bg-surface border border-accent/40 text-white py-4 rounded-2xl font-bold text-base mt-2 flex items-center justify-center gap-2"
               >
-                סיים אימון
+                <CalendarCheck size={20} className="text-accent" />
+                ביצעתי — שמור אימון
               </button>
             )}
           </>
@@ -1036,26 +1091,61 @@ export default function WorkoutPage() {
             style={{ paddingBottom: 'calc(1.5rem + env(safe-area-inset-bottom))' }}
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="text-xl font-extrabold">לסיים את האימון?</div>
+            <div className="text-xl font-extrabold">לשמור את האימון?</div>
             <div className="text-muted text-sm">
-              השלמת <span className="text-white font-bold">{doneSetCount}</span> מתוך {totalSets} סטים
-              {activeSession && <> · {formatClock(elapsed)}</>}
+              {doneSetCount > 0 ? (
+                <>
+                  השלמת <span className="text-white font-bold">{doneSetCount}</span> מתוך {totalSets} סטים
+                  {activeSession && <> · {formatClock(elapsed)}</>}. האימון יסומן היום בלוח השנה.
+                </>
+              ) : (
+                'עוד לא רשמת אף סט. רשום את המשקלים והחזרות (או "כמו בפעם הקודמת") ואז שמור.'
+              )}
             </div>
-            <button onClick={finish} className="w-full h-14 rounded-full bg-accent text-ink font-extrabold text-base">
-              {doneSetCount > 0 ? 'סיים ושמור' : 'סיים (לא נשמרו סטים)'}
+            <button
+              onClick={finish}
+              disabled={doneSetCount === 0}
+              className="w-full h-14 rounded-full bg-accent text-ink font-extrabold text-base flex items-center justify-center gap-2 disabled:opacity-40"
+            >
+              <CalendarCheck size={20} /> שמור אימון
             </button>
             <button onClick={() => setShowFinish(false)} className="w-full h-12 rounded-full bg-surface-2 text-white font-medium">
               המשך להתאמן
             </button>
             {confirmDiscard ? (
               <button onClick={discard} className="w-full text-red-400 text-sm font-medium py-2">
-                בטוח? כל הסטים של האימון הזה יימחקו
+                בטוח? כל הסטים שרשמת עכשיו יימחקו
               </button>
             ) : (
               <button onClick={() => setConfirmDiscard(true)} className="w-full text-faint text-sm py-2">
-                בטל אימון בלי לשמור
+                צא בלי לשמור
               </button>
             )}
+          </div>
+        </div>
+      )}
+
+      {otherSession && !isEditing && (
+        <div className="fixed inset-0 z-50 bg-black/70 flex items-end">
+          <div
+            className="w-full max-w-lg mx-auto bg-surface rounded-t-[28px] p-6 space-y-4"
+            style={{ paddingBottom: 'calc(1.5rem + env(safe-area-inset-bottom))' }}
+          >
+            <div className="text-xl font-extrabold">יש אימון שלא נשמר</div>
+            <div className="text-muted text-sm">
+              {workoutTypes.find((w) => w.id === otherSession.workoutTypeId)?.name ?? 'אימון'} ·{' '}
+              <span className="text-white font-bold">{otherSession.sets.length}</span> סטים רשומים.
+              מה לעשות איתו לפני שמתחילים את {workoutType.name}?
+            </div>
+            <button onClick={() => store.finishSession()} className="w-full h-14 rounded-full bg-accent text-ink font-extrabold text-base flex items-center justify-center gap-2">
+              <CalendarCheck size={20} /> שמור אותו בלוח
+            </button>
+            <button onClick={() => router.push(`/workout/${otherSession.workoutTypeId}`)} className="w-full h-12 rounded-full bg-surface-2 text-white font-medium">
+              חזור אליו
+            </button>
+            <button onClick={() => store.cancelSession()} className="w-full text-red-400 text-sm py-2">
+              מחק אותו
+            </button>
           </div>
         </div>
       )}

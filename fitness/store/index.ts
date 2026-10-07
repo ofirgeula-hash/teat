@@ -15,6 +15,7 @@ import type {
   EquipmentType,
   ExerciseLibraryItem,
 } from '@/types';
+import { WORKOUT_COLORS } from '@/types';
 
 interface AppState {
   workoutTypes: WorkoutType[];
@@ -44,6 +45,13 @@ interface AppState {
   /** Ends the active session; returns its id, or null when it had no sets and was discarded. */
   finishSession: () => string | null;
   cancelSession: () => void;
+  /** Records a workout on a past day without sets (forgotten to save). `date` is YYYY-MM-DD. */
+  logPastWorkout: (workoutTypeId: string, date: string) => void;
+  /**
+   * Run on launch/resume: a workout whose last set is over `maxIdleMs` old was
+   * forgotten mid-way, so it's saved as-is (or dropped if it has no sets).
+   */
+  closeStaleSession: (maxIdleMs: number) => void;
   deleteSession: (id: string) => void;
 
   addBodyWeight: (log: BodyWeightLog) => void;
@@ -106,6 +114,11 @@ const defaultWorkoutTypes: WorkoutType[] = [
   { id: 'wt3', name: 'כתפיים', emoji: '🏔️', color: '#f59e0b' },
   { id: 'wt4', name: 'רגליים + בטן', emoji: '🦵', color: '#ef4444' },
 ];
+
+/** First palette color no workout type uses yet (cycles once all are taken). */
+export function nextWorkoutColor(used: string[]): string {
+  return WORKOUT_COLORS.find((c) => !used.includes(c)) ?? WORKOUT_COLORS[used.length % WORKOUT_COLORS.length];
+}
 
 const defaultLocations: Location[] = [
   { id: 'loc1', name: 'פרופיט נס ציונה' },
@@ -368,6 +381,34 @@ export const useStore = create<AppState>()(
 
       cancelSession: () => set({ activeSession: null }),
 
+      closeStaleSession: (maxIdleMs) => {
+        const { activeSession } = get();
+        if (!activeSession) return;
+        if (activeSession.sets.length === 0) {
+          set({ activeSession: null });
+          return;
+        }
+        const lastAt = activeSession.sets.reduce((m, st) => (st.completedAt > m ? st.completedAt : m), activeSession.startedAt);
+        if (Date.now() - new Date(lastAt).getTime() < maxIdleMs) return;
+        const finished = { ...activeSession, endedAt: lastAt };
+        set((s) => ({ sessions: [finished, ...s.sessions], activeSession: null }));
+      },
+
+      logPastWorkout: (workoutTypeId, date) => {
+        const [y, m, d] = date.split('-').map(Number);
+        const at = new Date(y, m - 1, d, 12).toISOString();
+        const session: WorkoutSession = {
+          id: crypto.randomUUID(),
+          workoutTypeId,
+          locationId: get().locations[0]?.id ?? '',
+          startedAt: at,
+          endedAt: at,
+          sets: [],
+          notes: '',
+        };
+        set((s) => ({ sessions: [session, ...s.sessions] }));
+      },
+
       deleteSession: (id) => set((s) => ({ sessions: s.sessions.filter((x) => x.id !== id) })),
 
       addBodyWeight: (log) =>
@@ -457,7 +498,7 @@ export const useStore = create<AppState>()(
     }),
     {
       name: 'fitness-store-v2',
-      version: 5,
+      version: 6,
       migrate: (persistedState: unknown, version: number) => {
         const state = persistedState as AppState;
 
@@ -546,6 +587,25 @@ export const useStore = create<AppState>()(
         // v4→v5: add exerciseLibrary
         if (version < 5) {
           state.exerciseLibrary = state.exerciseLibrary ?? [];
+        }
+
+        // v5→v6: distinct color per workout type + full-body/split kind
+        if (version < 6) {
+          const types = state.workoutTypes ?? defaultWorkoutTypes;
+          // Types added from Home all got the accent orange; keep the first, recolor the rest.
+          const used = types.map((t) => t.color).filter((c) => c && c !== WORKOUT_COLORS[0]);
+          let orangeKept = false;
+          state.workoutTypes = types.map((wt) => {
+            let color = wt.color;
+            if (color === WORKOUT_COLORS[0] && !orangeKept) {
+              orangeKept = true;
+              used.push(color);
+            } else if (!color || color === WORKOUT_COLORS[0]) {
+              color = nextWorkoutColor(used);
+              used.push(color);
+            }
+            return { ...wt, color, kind: wt.kind ?? (/פול\s*באדי|full\s*body/i.test(wt.name) ? 'full' : 'split') };
+          });
         }
 
         return state;

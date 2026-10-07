@@ -21,10 +21,15 @@ GitHub: `ofirgeula-hash/teat`, deploy branch: `main` (auto-deploys to Vercel).
 - `fitness/types/index.ts` — all TypeScript types
 - `fitness/store/index.ts` — Zustand store + helper functions
 - `fitness/data/exerciseCatalog.ts` — bundled, static catalog (~70 exercises) used to seed the exercise library with auto-filled metadata, no API key needed
-- `fitness/app/page.tsx` — Home: weekly goal ring + streak, active-workout banner, workout type cards
+- `fitness/app/page.tsx` — Home: weekly goal ring + streak, workout type cards (edit sets name/emoji,
+  full-body vs split `kind`, and calendar color)
+- `fitness/components/LaunchChooser.tsx` — full-screen "פול באדי / חלוקה" picker shown when the app is
+  opened after 2h+ away (`fitness-last-active` in localStorage); also auto-saves a half-logged workout idle 3h+
 - `fitness/app/workout/[id]/page.tsx` — Active workout (id = workoutTypeId): whole plan always listed,
   current exercise expanded with big weight/reps steppers and "previous time" per set
-- `fitness/app/history/page.tsx`, `history/[id]` — past workouts; `summary/[id]` — shown after finishing.
+- `fitness/app/history/page.tsx` — month calendar (`components/WorkoutCalendar.tsx`, days filled with the
+  workout type's color; tapping a day can log a forgotten workout with no sets) + that month's list;
+  `history/[id]` — past workout; `summary/[id]` — shown after finishing.
   Both detail views render `components/SessionReport.tsx`
 - `fitness/lib/stats.ts` — volume, previous sets (matched by exercise name), personal records, week streak
 - `fitness/lib/cloudBackup.ts` + `components/BackupSync.tsx` + `components/CloudBackupCard.tsx` — Firebase backup
@@ -37,7 +42,7 @@ GitHub: `ofirgeula-hash/teat`, deploy branch: `main` (auto-deploys to Vercel).
 ## Data model (V2)
 
 ```typescript
-WorkoutType { id, name, emoji, color }               // 4 global types
+WorkoutType { id, name, emoji, color, kind?: 'full' | 'split' }  // color from WORKOUT_COLORS
 Location    { id, name }                              // gym / home
 LocationWorkoutPlan { locationId, workoutTypeId, exercises: PlanExercise[] }
 PlanExercise { id, name, notes: string[], sets: PlanSet[], equipment, muscleGroup?, libraryId? }
@@ -59,13 +64,16 @@ for any library item, but the catalog itself never depends on that API.
 
 ## Workout flow
 1. Home: tap a workout type card → navigate to `/workout/${workoutTypeId}`
-2. Workout page: session starts automatically with first location
+2. Workout page: no session until the first set is saved (there is no "active workout" UI). If another
+   workout has unsaved sets, a sheet asks to save / return to / delete it first
 3. Location chips (shown when there are 2+ locations) change which exercises are shown
 4. All exercises are listed; the current one is expanded. Defaults per set: weight carried from the
    previous set this session, else the last session's same set, else the plan. RPE is no longer collected.
+4b. "כמו בפעם הקודמת" on the current exercise saves all its open sets with last time's weight × reps
 5. Fixed bottom bar: "סיימתי סט" saves the selected set and advances; timer button opens RestTimer (manual)
-6. "סיים אימון" → bottom sheet → `finishSession()` (returns the id, or null and discards an empty
-   session) → `/summary/{id}`
+6. "ביצעתי — שמור אימון" → bottom sheet (needs ≥1 set) → `finishSession()` → `/summary/{id}`; the
+   workout then shows on the History calendar. `finishedSessions()` includes set-less sessions logged
+   from the calendar (`logPastWorkout`)
 7. Adding an exercise to a plan (new or existing — same flow either way) happens via "add exercise" in edit mode, which opens `ExerciseListPicker` over `exerciseLibrary`
 
 ## Backup
