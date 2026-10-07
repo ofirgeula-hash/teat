@@ -13,6 +13,26 @@
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-messaging-compat.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <script>
+    /* Pick the theme before first paint, and load only that theme's font */
+    var THEME_FONTS = {
+      sheet: 'IBM+Plex+Sans+Hebrew:wght@400;600;700',
+      card:  'Rubik:wght@400;500;800',
+      notes: 'Fredoka:wght@400;500;600',
+    };
+    function themeFontUrl(t) {
+      return 'https://fonts.googleapis.com/css2?family=' + THEME_FONTS[t] + '&display=swap';
+    }
+    (function () {
+      var t = 'sheet';
+      try { t = localStorage.getItem('shopping-list-theme') || 'sheet'; } catch (e) {}
+      if (!THEME_FONTS[t]) t = 'sheet';
+      document.documentElement.dataset.theme = t;
+      document.write('<link rel="stylesheet" id="theme-font" href="' + themeFontUrl(t) + '">');
+    })();
+  </script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -83,7 +103,6 @@
       gap: 12px;
     }
 
-    .header-icon { font-size: 26px; line-height: 1; }
     .header-text { flex: 1; }
 
     .header-text h1 {
@@ -544,6 +563,172 @@
       li.leaving { transform: none; }
       .settings-panel { transition: opacity .2s; }
     }
+    /* ── Icons (shared by all themes) ── */
+    #settings-btn, #refresh-btn, .delete-btn { font-size: 0; display: flex; align-items: center; justify-content: center; }
+    #settings-btn::before, #refresh-btn::before, .delete-btn::before {
+      content: ''; display: block; width: 20px; height: 20px; background: currentColor;
+      -webkit-mask: var(--icon) center / contain no-repeat; mask: var(--icon) center / contain no-repeat;
+    }
+    .delete-btn { width: 34px; height: 34px; padding: 0; }
+    .delete-btn::before { width: 18px; height: 18px; }
+    #settings-btn { --icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 7h10M18 7h2M4 17h4M12 17h8'/%3E%3Ccircle cx='16' cy='7' r='2'/%3E%3Ccircle cx='10' cy='17' r='2'/%3E%3C/svg%3E"); }
+    #refresh-btn  { --icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M21 12a9 9 0 1 1-3-6.7L21 8'/%3E%3Cpath d='M21 3v5h-5'/%3E%3C/svg%3E"); }
+    .delete-btn   { --icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3 6h18'/%3E%3Cpath d='M8 6V4h8v2'/%3E%3Cpath d='M6 6l1 14h10l1-14'/%3E%3C/svg%3E"); }
+
+    /* ── Hero: open-item count; each theme shows a different part of it ── */
+    .hero { display: flex; }
+    .section-label { letter-spacing: 0; text-transform: none; }
+    .header-text h1 { transition: color .2s; }
+
+    /* ── Theme picker (settings) ── */
+    .theme-picker { display: flex; gap: 8px; }
+    .settings-section:has(.theme-picker) { padding-bottom: 22px; border-bottom: 1px solid var(--border); }
+    .theme-btn {
+      flex: 1; padding: 10px 4px 9px; border-radius: 12px;
+      border: 1.5px solid var(--border); background: var(--surface2); color: var(--text);
+      font-family: inherit; font-size: 14px; font-weight: 500; cursor: pointer;
+      display: flex; flex-direction: column; align-items: center; gap: 6px;
+    }
+    .theme-btn.sel { border-color: var(--text); box-shadow: inset 0 0 0 1px var(--text); font-weight: 700; }
+    .theme-swatch { width: 44px; height: 28px; border-radius: 8px; border: 1px solid rgba(0,0,0,.12); }
+    .theme-swatch.sheet { background: linear-gradient(90deg, #fff 55%, #2E6BFF 55% 70%, #fff 70%); }
+    .theme-swatch.card  { background: radial-gradient(circle at 70% 40%, #3D7BFF 0 9px, #0E1014 10px); }
+    .theme-swatch.notes { background: linear-gradient(90deg, #CBEFDD 33%, #E2D8FF 33% 66%, #FFEAA6 66%); }
+
+    /* ═══ Theme "sheet": גיליון — לבן, מספר ענק, צבע לכל חנות ═══ */
+    html[data-theme="sheet"] { --bg: #ffffff; --surface: #ffffff; --surface2: #F3F4F6; --text: #15171C; --muted: #8B919B; --border: #ECEEF1; --accent: #15171C; --store-colors: #2E6BFF, #0E9F77, #F2661B, #D63F8C, #7A5AF8, #B58900; }
+    html[data-theme="sheet"], html[data-theme="sheet"] body { font-family: 'IBM Plex Sans Hebrew', -apple-system, sans-serif; background: #fff; }
+    html[data-theme="sheet"] .top-panel { background: none; box-shadow: none; border-radius: 0; padding-bottom: 0; }
+    html[data-theme="sheet"] header { padding-bottom: 4px; }
+    html[data-theme="sheet"] .header-text h1 { font-size: 15px; font-weight: 600; color: var(--muted); letter-spacing: 0; }
+    html[data-theme="sheet"] .sync-text { font-size: 12px; }
+    html[data-theme="sheet"] #settings-btn, html[data-theme="sheet"] #refresh-btn { border: none; background: var(--surface2); border-radius: 50%; color: var(--text); width: 40px; height: 40px; }
+    html[data-theme="sheet"] .hero { align-items: baseline; gap: 12px; padding: 0 20px 6px; }
+    html[data-theme="sheet"] #hero-title, html[data-theme="sheet"] #hero-sub { display: none; }
+    html[data-theme="sheet"] #big-count { font-size: 84px; font-weight: 700; line-height: .95; letter-spacing: -3px; color: var(--store); font-variant-numeric: tabular-nums; transition: color .25s; }
+    html[data-theme="sheet"] #big-label { font-size: 21px; font-weight: 600; color: var(--text); }
+    html[data-theme="sheet"] .store-tabs-wrap { padding: 8px 20px 14px; }
+    html[data-theme="sheet"] .store-tabs { gap: 20px; mask-image: none; -webkit-mask-image: none; }
+    html[data-theme="sheet"] .store-tab { border: none; background: none; box-shadow: none; padding: 6px 0; border-radius: 0; font-size: 16px; color: var(--muted); }
+    html[data-theme="sheet"] .store-tab.active { background: none; color: var(--text); font-weight: 700; box-shadow: inset 0 -3px 0 var(--c); }
+    html[data-theme="sheet"] .store-tab-count, html[data-theme="sheet"] .store-tab.active .store-tab-count { background: none; color: inherit; padding: 0; font-weight: 400; opacity: .6; min-width: 0; }
+    html[data-theme="sheet"] .add-store-trigger { border-style: solid; border-color: var(--border); color: var(--muted); }
+    html[data-theme="sheet"] .filters { margin: 0 20px 6px; padding: 3px; background: var(--surface2); border-radius: 12px; gap: 0; }
+    html[data-theme="sheet"] .filter-btn { border: none; background: none; box-shadow: none; font-size: 14px; padding: 7px 4px; }
+    html[data-theme="sheet"] .filter-btn.active { background: #fff; color: var(--text); box-shadow: 0 1px 3px rgba(0,0,0,.1); }
+    html[data-theme="sheet"] ul { gap: 0; }
+    html[data-theme="sheet"] li { border: none; border-bottom: 1px solid var(--border); border-radius: 0; box-shadow: none; padding: 15px 0; background: none; }
+    html[data-theme="sheet"] li::before { display: none; }
+    html[data-theme="sheet"] .add-row { border: none; border-bottom: 1px solid var(--border); border-radius: 0; padding: 15px 0; }
+    html[data-theme="sheet"] .add-row-icon { color: var(--store); }
+    html[data-theme="sheet"] .item-text { font-size: 18px; }
+    html[data-theme="sheet"] .checkbox { width: 26px; height: 26px; border-color: #C9CDD3; }
+    html[data-theme="sheet"] .checkbox:checked { background: var(--store); border-color: var(--store); }
+    html[data-theme="sheet"] .urgent-btn { border: none; background: none; }
+    html[data-theme="sheet"] .urgent-btn.on { background: #FDECEC; color: #E5484D; border-radius: 50%; }
+    html[data-theme="sheet"] li:has(.urgent-btn.on) .item-text { font-weight: 600; }
+    html[data-theme="sheet"] .item-store { background: none; border: none; padding: 0; font-size: 12px; }
+    html[data-theme="sheet"] .delete-btn { color: #B4B9C1; }
+    html[data-theme="sheet"] .bottom-nav { border-top: 1px solid var(--border); background: #fff; }
+    html[data-theme="sheet"] .nav-tab { font-size: 14px; }
+    html[data-theme="sheet"] .nav-tab.active { background: none; color: var(--text); box-shadow: inset 0 3px 0 var(--text); border-radius: 0; }
+    html[data-theme="sheet"] #notify-action-btn { background: var(--text); }
+
+    /* ═══ Theme "card": כרטיס — כהה, החנות הפעילה היא כרטיס צבעוני ═══ */
+    html[data-theme="card"] { --bg: #0E1014; --surface: #181B21; --surface2: #21252D; --text: #F3F4F6; --muted: #8D94A1; --border: #2A2E37; --accent: #3D7BFF; --store-colors: #3D7BFF, #12B886, #FF7A2F, #F0509A, #8B6CFF, #D9A900; color-scheme: dark; }
+    html[data-theme="card"], html[data-theme="card"] body { font-family: 'Rubik', -apple-system, sans-serif; background: var(--bg); }
+    html[data-theme="card"] .top-panel { background: none; box-shadow: none; border-radius: 0; padding-bottom: 0; }
+    html[data-theme="card"] header { padding-bottom: 10px; }
+    html[data-theme="card"] .header-text h1 { font-size: 15px; font-weight: 500; color: var(--muted); letter-spacing: 0; }
+    html[data-theme="card"] #settings-btn, html[data-theme="card"] #refresh-btn { border: none; background: var(--surface); border-radius: 12px; color: var(--text); }
+    html[data-theme="card"] .hero { position: relative; overflow: hidden; flex-direction: column; justify-content: flex-end; gap: 4px; margin: 0 16px; padding: 22px 22px 18px; min-height: 150px; border-radius: 26px; color: #fff; background: linear-gradient(140deg, var(--store), color-mix(in oklab, var(--store) 62%, #000)); box-shadow: 0 24px 44px -22px var(--store); transition: background .3s, box-shadow .3s; }
+    html[data-theme="card"] .hero::after { content: ''; position: absolute; width: 190px; height: 190px; left: -60px; top: -70px; border-radius: 50%; border: 28px solid rgba(255,255,255,.1); }
+    html[data-theme="card"] #big-count, html[data-theme="card"] #big-label { display: none; }
+    html[data-theme="card"] #hero-title { font-size: 38px; font-weight: 800; line-height: 1.05; letter-spacing: -.5px; overflow-wrap: anywhere; position: relative; }
+    html[data-theme="card"] #hero-sub { font-size: 15px; font-weight: 500; opacity: .85; position: relative; }
+    html[data-theme="card"] .store-tabs-wrap { padding: 16px 16px 12px; }
+    html[data-theme="card"] .store-tab { background: var(--surface); border: none; box-shadow: none; color: var(--muted); font-size: 14px; padding: 8px 14px; }
+    html[data-theme="card"] .store-tab.active { background: var(--c); color: #fff; }
+    html[data-theme="card"] .store-tab-count { background: rgba(255,255,255,.08); color: inherit; }
+    html[data-theme="card"] .add-store-trigger { border-color: var(--border); color: var(--muted); padding: 8px 14px; font-size: 14px; }
+    html[data-theme="card"] .store-input-row { background: var(--surface); border-color: var(--accent); }
+    html[data-theme="card"] .filters { padding: 0 16px 10px; }
+    html[data-theme="card"] .filter-btn { background: none; border: none; box-shadow: none; font-size: 14px; color: var(--muted); }
+    html[data-theme="card"] .filter-btn.active { background: var(--surface2); color: var(--text); }
+    html[data-theme="card"] #list-container { padding: 0 16px 16px; }
+    html[data-theme="card"] li { background: var(--surface); border: none; box-shadow: none; border-radius: 18px; padding: 14px; }
+    html[data-theme="card"] li::before { display: none; }
+    html[data-theme="card"] .add-row { background: none; border: 1.5px dashed var(--border); }
+    html[data-theme="card"] .add-row-icon { color: var(--store); }
+    html[data-theme="card"] .item-text { font-size: 17px; }
+    html[data-theme="card"] li.done .item-text { color: #5F6673; }
+    html[data-theme="card"] .checkbox { border-color: #3A404B; width: 26px; height: 26px; }
+    html[data-theme="card"] .checkbox:checked { background: var(--store); border-color: var(--store); }
+    html[data-theme="card"] .urgent-btn { border: none; color: #4A505C; }
+    html[data-theme="card"] .urgent-btn:not(.on) { color: #4A505C; }
+    html[data-theme="card"] .urgent-btn.on { background: rgba(255,92,92,.14); color: #FF6B6B; }
+    html[data-theme="card"] li:has(.urgent-btn.on) { box-shadow: inset -3px 0 0 #FF6B6B; }
+    html[data-theme="card"] .item-store { background: var(--surface2); border: none; }
+    html[data-theme="card"] .delete-btn { color: #5F6673; }
+    html[data-theme="card"] .bottom-nav { background: rgba(14,16,20,.85); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border-top: 1px solid var(--border); }
+    html[data-theme="card"] .nav-tab.active { background: var(--text); color: var(--bg); }
+    html[data-theme="card"] #undo-toast { background: var(--text); color: var(--bg); }
+    html[data-theme="card"] #undo-toast-btn { color: var(--accent); }
+    html[data-theme="card"] .settings-panel { background: var(--surface); }
+    html[data-theme="card"] .settings-overlay { background: rgba(0,0,0,.6); }
+    html[data-theme="card"] .time-input { color: var(--text); color-scheme: dark; }
+    html[data-theme="card"] .toggle::after { background: #fff; }
+    html[data-theme="card"] #hero-title { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+
+    /* ═══ Theme "notes": פתקים — צבע לכל רשימה, עגול ושובב ═══ */
+    html[data-theme="notes"] { --bg: #CBEFDD; --surface: #ffffff; --surface2: #F4F6F1; --text: #1D2A23; --muted: #5E6E66; --border: rgba(29,42,35,.14); --accent: #1D2A23; --store-colors: #1D2A23, #1D2A23; --ink: #1D2A23; }
+    html[data-theme="notes"] body[data-tab="yarin"] { --bg: #E2D8FF; }
+    html[data-theme="notes"] body[data-tab="ofir"] { --bg: #FFEAA6; }
+    html[data-theme="notes"], html[data-theme="notes"] body { font-family: 'Fredoka', 'Varela Round', sans-serif; }
+    html[data-theme="notes"] body { background: var(--bg); transition: background-color .35s; }
+    html[data-theme="notes"] #app { background: var(--bg); transition: background-color .35s; }
+    html[data-theme="notes"] .top-panel { background: none; box-shadow: none; border-radius: 0; padding-bottom: 0; }
+    html[data-theme="notes"] header { padding-bottom: 6px; }
+    html[data-theme="notes"] .header-text h1 { font-size: 30px; font-weight: 600; color: var(--ink); letter-spacing: -.3px; }
+    html[data-theme="notes"] .sync-text { color: var(--muted); }
+    html[data-theme="notes"] #settings-btn, html[data-theme="notes"] #refresh-btn { background: var(--surface); border: 2px solid var(--ink); color: var(--ink); border-radius: 14px; box-shadow: 0 3px 0 var(--ink); width: 40px; height: 40px; }
+    html[data-theme="notes"] #settings-btn:active, html[data-theme="notes"] #refresh-btn:active { box-shadow: 0 1px 0 var(--ink); transform: translateY(2px); }
+    html[data-theme="notes"] .hero { padding: 0 20px 4px; }
+    html[data-theme="notes"] #hero-title, html[data-theme="notes"] #big-count, html[data-theme="notes"] #big-label { display: none; }
+    html[data-theme="notes"] #hero-sub { display: inline-block; background: var(--ink); color: #fff; font-size: 15px; font-weight: 500; padding: 4px 12px; border-radius: 999px; transform: rotate(-2deg); }
+    html[data-theme="notes"] .store-tabs-wrap { padding: 14px 20px 12px; }
+    html[data-theme="notes"] .store-tab { background: rgba(255,255,255,.55); border: 2px solid transparent; box-shadow: none; color: var(--ink); font-size: 15px; font-weight: 500; padding: 6px 14px; }
+    html[data-theme="notes"] .store-tab.active { background: var(--surface); border-color: var(--ink); color: var(--ink); box-shadow: 0 3px 0 var(--ink); }
+    html[data-theme="notes"] .store-tab-count { background: var(--bg); color: var(--ink); }
+    html[data-theme="notes"] .store-tab.active .store-tab-count { background: var(--ink); color: #fff; }
+    html[data-theme="notes"] .add-store-trigger { border: 2px dashed rgba(29,42,35,.35); color: var(--ink); font-size: 15px; padding: 6px 14px; }
+    html[data-theme="notes"] .store-input-row { border: 2px solid var(--ink); }
+    html[data-theme="notes"] .filters { gap: 6px; }
+    html[data-theme="notes"] .filter-btn { background: none; border: none; box-shadow: none; color: var(--muted); font-size: 15px; font-weight: 500; }
+    html[data-theme="notes"] .filter-btn.active { background: rgba(255,255,255,.7); color: var(--ink); }
+    html[data-theme="notes"] ul { gap: 10px; }
+    html[data-theme="notes"] li { background: var(--surface); border: 2px solid var(--ink); border-radius: 20px; box-shadow: 0 3px 0 var(--ink); padding: 13px 14px; }
+    html[data-theme="notes"] li::before { display: none; }
+    html[data-theme="notes"] .add-row { background: rgba(255,255,255,.45); border: 2px dashed rgba(29,42,35,.35); box-shadow: none; }
+    html[data-theme="notes"] .add-row-icon, html[data-theme="notes"] .add-row-placeholder { color: var(--ink); }
+    html[data-theme="notes"] .item-text { font-size: 18px; font-weight: 500; }
+    html[data-theme="notes"] .checkbox { border-radius: 9px; border: 2.5px solid var(--ink); width: 26px; height: 26px; }
+    html[data-theme="notes"] .checkbox:checked { background: var(--ink); border-color: var(--ink); }
+    html[data-theme="notes"] .urgent-btn { border: 2px solid transparent; color: rgba(29,42,35,.3); border-radius: 10px; }
+    html[data-theme="notes"] .urgent-btn:not(.on) { color: rgba(29,42,35,.3); }
+    html[data-theme="notes"] .urgent-btn.on { background: #FF6B5A; border-color: var(--ink); color: #fff; }
+    html[data-theme="notes"] .item-store { background: var(--bg); border: none; color: var(--ink); font-size: 12px; }
+    html[data-theme="notes"] .delete-btn { color: rgba(29,42,35,.45); }
+    html[data-theme="notes"] .bottom-nav { background: var(--surface); border-top: 2px solid var(--ink); }
+    html[data-theme="notes"] .nav-tab { color: var(--ink); font-size: 15px; font-weight: 500; border-radius: 14px; }
+    html[data-theme="notes"] .nav-tab.active { color: var(--ink); border: 2px solid var(--ink); font-weight: 600; }
+    html[data-theme="notes"] .nav-tab[data-tab="shopping"].active { background: #CBEFDD; }
+    html[data-theme="notes"] .nav-tab[data-tab="yarin"].active { background: #E2D8FF; }
+    html[data-theme="notes"] .nav-tab[data-tab="ofir"].active { background: #FFEAA6; }
+    html[data-theme="notes"] #undo-toast { background: var(--ink); border-radius: 16px; }
+    html[data-theme="notes"] #undo-toast-btn { color: #FFEAA6; }
+    html[data-theme="notes"] .settings-panel { border-top: 2px solid var(--ink); }
+    html[data-theme="notes"] #notify-action-btn { background: var(--ink); border-radius: 16px; }
   </style>
 </head>
 <body>
@@ -553,7 +738,6 @@
   <div class="top-panel">
 
     <header>
-      <div class="header-icon">🛒</div>
       <div class="header-text">
         <h1>רשימת קניות</h1>
         <div class="sync-row">
@@ -564,6 +748,10 @@
       <button id="settings-btn" aria-label="הגדרות">⚙️</button>
       <button id="refresh-btn" aria-label="רענן">↻</button>
     </header>
+
+    <div class="hero" aria-live="polite">
+      <span id="hero-title"></span><span id="big-count"></span><span id="big-label"></span><span id="hero-sub"></span>
+    </div>
 
   </div><!-- /top-panel -->
 
@@ -623,13 +811,22 @@
 
   <!-- ═══ Settings overlay + panel ═══ -->
   <div class="settings-overlay" id="settings-overlay"></div>
-  <div class="settings-panel" id="settings-panel" role="dialog" aria-modal="true" aria-label="הגדרות התראות">
+  <div class="settings-panel" id="settings-panel" role="dialog" aria-modal="true" aria-label="הגדרות">
     <div class="settings-handle"></div>
     <div class="settings-header">
-      <h2>הגדרות התראות 🔔</h2>
+      <h2>הגדרות</h2>
       <button class="settings-close" id="settings-close" aria-label="סגור">✕</button>
     </div>
     <div class="settings-body">
+
+      <div class="settings-section">
+        <label class="section-label">עיצוב</label>
+        <div class="theme-picker">
+          <button class="theme-btn" data-theme="sheet"><span class="theme-swatch sheet"></span>גיליון</button>
+          <button class="theme-btn" data-theme="card"><span class="theme-swatch card"></span>כרטיס</button>
+          <button class="theme-btn" data-theme="notes"><span class="theme-swatch notes"></span>פתקים</button>
+        </div>
+      </div>
 
       <div class="settings-section">
         <label class="section-label">מי אתה?</label>
@@ -794,7 +991,11 @@
 
   function renderStoreTabs() {
     storeTabsEl.innerHTML = '';
-    stores.forEach(s => storeTabsEl.appendChild(makeStoreTab(s.id, s.name, true)));
+    stores.forEach((s, i) => {
+      const tab = makeStoreTab(s.id, s.name, true);
+      tab.style.setProperty('--c', storeColor(i));
+      storeTabsEl.appendChild(tab);
+    });
   }
 
   function makeStoreTab(id, name, canDelete) {
@@ -997,6 +1198,59 @@
   function updateHeader() {
     document.querySelector('.header-text h1').textContent =
       (TABS.find(t => t.id === activeTab) || TABS[0]).header;
+    updateHero();
+  }
+
+  /* ── Themes ── */
+  const THEME_KEY = 'shopping-list-theme'; // THEME_FONTS / themeFontUrl live in <head>
+
+  // each theme defines its own store palette as a CSS list in --store-colors
+  function storeColor(i) {
+    const palette = getComputedStyle(document.documentElement)
+      .getPropertyValue('--store-colors').split(',').map(c => c.trim()).filter(Boolean);
+    return palette.length ? palette[i % palette.length] : '';
+  }
+
+  function applyTheme(name) {
+    if (!THEME_FONTS[name]) name = 'sheet';
+    document.documentElement.dataset.theme = name;
+    const font = document.getElementById('theme-font');
+    if (font.getAttribute('href') !== themeFontUrl(name)) font.href = themeFontUrl(name);
+    document.querySelectorAll('.theme-btn').forEach(b => b.classList.toggle('sel', b.dataset.theme === name));
+  }
+
+  document.querySelectorAll('.theme-btn').forEach(btn => btn.addEventListener('click', () => {
+    applyTheme(btn.dataset.theme);
+    try { localStorage.setItem(THEME_KEY, btn.dataset.theme); } catch {}
+    renderStoreTabs();
+    render();
+  }));
+  applyTheme(document.documentElement.dataset.theme);
+
+  /* ── Hero: open count for the current list / store ── */
+  function updateHero() {
+    const shopping = activeTab === 'shopping';
+    const storeIdx = shopping ? stores.findIndex(s => s.id === selectedStore) : -1;
+    const store    = stores[storeIdx];
+    const open = items.filter(i => (i.listType || 'shopping') === activeTab && !i.done &&
+      (!shopping || selectedStore === 'all' || i.storeId === selectedStore)).length;
+    const plural = (one, many) => open === 1 ? one : many;
+
+    document.documentElement.style.setProperty('--store', storeColor(Math.max(storeIdx, 0)));
+    document.body.dataset.tab = activeTab;
+    document.getElementById('hero-title').textContent =
+      store ? store.name : (TABS.find(t => t.id === activeTab) || TABS[0]).header;
+    document.getElementById('big-count').textContent = open;
+    document.getElementById('big-label').textContent = shopping
+      ? (store ? 'לקנות ב' + store.name : 'לקנות')
+      : plural('משימה פתוחה', 'משימות פתוחות');
+    document.getElementById('hero-sub').textContent = open === 0
+      ? (shopping ? 'אין מה לקנות' : 'אין משימות פתוחות')
+      : open + ' ' + (shopping ? plural('פריט לקנות', 'פריטים לקנות') : plural('משימה פתוחה', 'משימות פתוחות'));
+
+    // status bar follows the theme's (and in "notes", the list's) background
+    document.querySelector('meta[name="theme-color"]').content =
+      getComputedStyle(document.body).getPropertyValue('--bg').trim() || '#ffffff';
   }
 
   function updateShoppingOnlyUI() {
