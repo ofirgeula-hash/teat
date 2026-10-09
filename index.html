@@ -333,22 +333,29 @@
       padding-bottom: 2px; min-width: 0;
     }
 
-    /* Store dropdown on each item */
-    /* Small visual chip; the real <select> sits on top of it invisibly at 16px so
-       iOS doesn't zoom the page when it opens */
-    .item-store {
-      position: relative; flex-shrink: 0; max-width: 100%;
-      background: var(--surface2); border: 1px solid var(--border);
-      color: var(--muted); font-size: 11px;
-      padding: 1px 8px; border-radius: 10px;
+    /* Long-press an item to move it to another store: no iOS text selection or
+       callout on the press, and a slow shrink (after a short delay, so plain taps
+       and scrolls don't flicker) that shows the press is being held */
+    .item-main { user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
+    .item-main .item-edit-input { user-select: text; -webkit-user-select: text; }
+    li.pressing { transform: scale(0.97); transition: transform 400ms var(--ease-out) 120ms; }
+
+    /* Store picker sheet (reuses the settings sheet's overlay + panel) */
+    .store-sheet-item {
+      padding: 12px 20px 0; font-size: 14px; color: var(--muted);
       white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
     }
-    .item-store:has(.item-store-select:focus-visible) { border-color: var(--accent); }
-    .item-store-select {
-      position: absolute; inset: 0; width: 100%; height: 100%;
-      opacity: 0; font-size: 16px; cursor: pointer;
-      appearance: none; -webkit-appearance: none; border: none;
+    .store-options { display: flex; flex-direction: column; padding: 8px 12px 0; }
+    .store-option {
+      display: flex; align-items: center; gap: 12px;
+      padding: 14px 8px; border: none; border-radius: 12px; background: none;
+      font-family: inherit; font-size: 16px; color: var(--text);
+      text-align: right; cursor: pointer;
     }
+    .store-option:active { background: var(--surface2); }
+    .store-option-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--c); flex-shrink: 0; }
+    .store-option.current { font-weight: 700; }
+    .store-option.current::after { content: '✓'; margin-inline-start: auto; color: var(--c); }
 
     .delete-btn {
       background: none; border: none; color: var(--muted);
@@ -568,7 +575,7 @@
     @media (prefers-reduced-motion: reduce) {
       button:active, .store-tab:active, .add-row:active, .checkbox:active { transform: none; }
       li.entering { @starting-style { transform: none; } }
-      li.leaving { transform: none; }
+      li.leaving, li.pressing { transform: none; }
       .settings-panel { transition: opacity .2s; }
     }
     /* ── Icons (shared by all themes) ── */
@@ -635,7 +642,6 @@
     html[data-theme="sheet"] .urgent-btn { border: none; background: none; }
     html[data-theme="sheet"] .urgent-btn.on { background: #FDECEC; color: #E5484D; border-radius: 50%; }
     html[data-theme="sheet"] li:has(.urgent-btn.on) .item-text { font-weight: 600; }
-    html[data-theme="sheet"] .item-store { background: none; border: none; padding: 0; font-size: 12px; }
     html[data-theme="sheet"] .delete-btn { color: #B4B9C1; }
     html[data-theme="sheet"] .bottom-nav { border-top: 1px solid var(--border); background: #fff; }
     html[data-theme="sheet"] .nav-tab { font-size: 14px; }
@@ -676,7 +682,6 @@
     html[data-theme="card"] .urgent-btn:not(.on) { color: #4A505C; }
     html[data-theme="card"] .urgent-btn.on { background: rgba(255,92,92,.14); color: #FF6B6B; }
     html[data-theme="card"] li:has(.urgent-btn.on) { box-shadow: inset -3px 0 0 #FF6B6B; }
-    html[data-theme="card"] .item-store { background: var(--surface2); border: none; }
     html[data-theme="card"] .delete-btn { color: #5F6673; }
     html[data-theme="card"] .bottom-nav { background: rgba(14,16,20,.85); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border-top: 1px solid var(--border); }
     html[data-theme="card"] .nav-tab.active { background: var(--text); color: var(--bg); }
@@ -725,7 +730,6 @@
     html[data-theme="notes"] .urgent-btn { border: 2px solid transparent; color: rgba(29,42,35,.3); border-radius: 10px; }
     html[data-theme="notes"] .urgent-btn:not(.on) { color: rgba(29,42,35,.3); }
     html[data-theme="notes"] .urgent-btn.on { background: #FF6B5A; border-color: var(--ink); color: #fff; }
-    html[data-theme="notes"] .item-store { background: var(--bg); border: none; color: var(--ink); font-size: 12px; }
     html[data-theme="notes"] .delete-btn { color: rgba(29,42,35,.45); }
     html[data-theme="notes"] .bottom-nav { background: var(--surface); border-top: 2px solid var(--ink); }
     html[data-theme="notes"] .nav-tab { color: var(--ink); font-size: 15px; font-weight: 500; border-radius: 14px; }
@@ -815,6 +819,18 @@
   <div id="undo-toast" role="status">
     <span id="undo-toast-msg"></span>
     <button id="undo-toast-btn">שחזר</button>
+  </div>
+
+  <!-- ═══ Move-to-store sheet (opened by long-pressing an item) ═══ -->
+  <div class="settings-overlay" id="store-sheet-overlay"></div>
+  <div class="settings-panel" id="store-sheet" role="dialog" aria-modal="true" aria-labelledby="store-sheet-title">
+    <div class="settings-handle"></div>
+    <div class="settings-header">
+      <h2 id="store-sheet-title">העבר לחנות</h2>
+      <button class="settings-close" id="store-sheet-close" aria-label="סגור">✕</button>
+    </div>
+    <p class="store-sheet-item" id="store-sheet-item"></p>
+    <div class="store-options" id="store-options"></div>
   </div>
 
   <!-- ═══ Settings overlay + panel ═══ -->
@@ -1134,6 +1150,69 @@
     }
   }
 
+  /* ── Long-press an item → "move to store" sheet ── */
+  const LONG_PRESS_MS = 500;
+  let suppressNextClick = false; // the release after a long press must not start an edit
+
+  function attachLongPress(li, item) {
+    let timer = null, startX = 0, startY = 0;
+    const cancel = () => { clearTimeout(timer); timer = null; li.classList.remove('pressing'); };
+
+    li.addEventListener('pointerdown', e => {
+      suppressNextClick = false;
+      if (e.button !== 0 || e.target.closest('button, input')) return;
+      startX = e.clientX; startY = e.clientY;
+      li.classList.add('pressing');
+      timer = setTimeout(() => {
+        cancel();
+        suppressNextClick = true;
+        if (navigator.vibrate) navigator.vibrate(10);
+        openStoreSheet(item.id); // read at fire time: addItem() swaps a temp id in place
+      }, LONG_PRESS_MS);
+    });
+    li.addEventListener('pointermove', e => {
+      if (timer && Math.hypot(e.clientX - startX, e.clientY - startY) > 10) cancel();
+    });
+    ['pointerup', 'pointercancel', 'pointerleave'].forEach(t => li.addEventListener(t, cancel));
+    li.addEventListener('contextmenu', e => e.preventDefault());
+    li.addEventListener('click', e => {
+      if (!suppressNextClick) return;
+      suppressNextClick = false;
+      e.stopPropagation(); e.preventDefault();
+    }, true);
+  }
+
+  function openStoreSheet(id) {
+    const item = items.find(i => i.id === id);
+    if (!item) return;
+    document.getElementById('store-sheet-item').textContent = item.text;
+    const optionsEl = document.getElementById('store-options');
+    optionsEl.innerHTML = '';
+    stores.forEach((s, i) => {
+      const btn = document.createElement('button');
+      btn.className = 'store-option' + (item.storeId === s.id ? ' current' : '');
+      btn.style.setProperty('--c', storeColor(i));
+      const dot = document.createElement('span');
+      dot.className = 'store-option-dot';
+      const name = document.createElement('span');
+      name.textContent = s.name;
+      btn.append(dot, name);
+      btn.addEventListener('click', () => {
+        closeStoreSheet();
+        if (item.storeId !== s.id) changeItemStore(id, s.id);
+      });
+      optionsEl.appendChild(btn);
+    });
+    document.getElementById('store-sheet-overlay').classList.add('open');
+    document.getElementById('store-sheet').classList.add('open');
+  }
+  function closeStoreSheet() {
+    document.getElementById('store-sheet-overlay').classList.remove('open');
+    document.getElementById('store-sheet').classList.remove('open');
+  }
+  document.getElementById('store-sheet-close').addEventListener('click', closeStoreSheet);
+  document.getElementById('store-sheet-overlay').addEventListener('click', closeStoreSheet);
+
   /* ── Inline add row ── */
   function activateAddRow(li, ph) {
     if (li.querySelector('.add-row-input')) return; // already active
@@ -1348,30 +1427,7 @@
       urgBtn.addEventListener('click', () => toggleUrgent(item.id));
       li.appendChild(urgBtn);
 
-      if (activeTab === 'shopping' && stores.length > 0) {
-        const chip = document.createElement('span');
-        chip.className = 'item-store';
-        const chipLabel = document.createElement('span');
-        chipLabel.textContent = (stores.find(s => s.id === item.storeId) || {}).name || 'ללא';
-        const sel = document.createElement('select');
-        sel.className = 'item-store-select';
-        sel.setAttribute('aria-label', 'שייך לחנות');
-
-        const noOpt = document.createElement('option');
-        noOpt.value = ''; noOpt.textContent = 'ללא';
-        if (!item.storeId) noOpt.selected = true;
-        sel.appendChild(noOpt);
-
-        stores.forEach(s => {
-          const opt = document.createElement('option');
-          opt.value = s.id; opt.textContent = s.name;
-          if (item.storeId === s.id) opt.selected = true;
-          sel.appendChild(opt);
-        });
-        sel.addEventListener('change', () => changeItemStore(item.id, sel.value));
-        chip.append(chipLabel, sel);
-        main.appendChild(chip);
-      }
+      if (activeTab === 'shopping' && stores.length > 1) attachLongPress(li, item);
 
       const del = document.createElement('button');
       del.className = 'delete-btn'; del.innerHTML = '🗑';

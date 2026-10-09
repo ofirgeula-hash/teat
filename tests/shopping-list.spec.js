@@ -379,3 +379,56 @@ test('הכותרת הגדולה סופרת רק פריטים פתוחים ברש
   await expect(page.locator('#big-count')).toHaveText('0');
   await expect(page.locator('#hero-sub')).toHaveText('אין משימות פתוחות');
 });
+
+// ── Move item between stores (long press) ────────────────────────────────────
+
+// two stores, reloaded so the first one is selected (as on any later visit)
+async function setupTwoStores(page) {
+  for (const name of ['סופר', 'פארם']) {
+    await page.click('#show-store-btn');
+    await page.fill('#store-name-input', name);
+    await page.press('#store-name-input', 'Enter');
+  }
+  await expect(page.locator('.store-tab')).toHaveCount(2);
+  await page.reload();
+  await expect(page.locator('.store-tab.active')).toContainText('סופר');
+}
+
+async function longPress(locator) {
+  const box = await locator.boundingBox();
+  await locator.page().mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await locator.page().mouse.down();
+  await locator.page().waitForTimeout(700);
+  await locator.page().mouse.up();
+}
+
+test('לחיצה ארוכה על פריט מעבירה אותו לחנות אחרת', async ({ page }) => {
+  await setupTwoStores(page);
+  await addItem(page, 'שמפו');
+
+  // no per-item store chip anymore
+  await expect(items(page).first().locator('select')).toHaveCount(0);
+
+  await longPress(items(page).first().locator('.item-text'));
+  await expect(page.locator('#store-sheet')).toHaveClass(/open/);
+  // the release after the long press must not start inline editing
+  await expect(page.locator('.item-edit-input')).toHaveCount(0);
+  await expect(page.locator('.store-option.current')).toHaveText('סופר');
+
+  await page.locator('.store-option', { hasText: 'פארם' }).click();
+  await expect(page.locator('#store-sheet')).not.toHaveClass(/open/);
+  await expect(items(page)).toHaveCount(0);
+
+  await page.locator('.store-tab', { hasText: 'פארם' }).click();
+  await expect(items(page)).toHaveCount(1);
+  await expect(items(page).first().locator('.item-text')).toHaveText('שמפו');
+});
+
+test('הקשה קצרה על פריט עדיין פותחת עריכה ולא את חלון החנויות', async ({ page }) => {
+  await setupTwoStores(page);
+  await addItem(page, 'חלב');
+
+  await items(page).first().locator('.item-text').click();
+  await expect(page.locator('.item-edit-input')).toHaveCount(1);
+  await expect(page.locator('#store-sheet')).not.toHaveClass(/open/);
+});
