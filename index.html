@@ -148,12 +148,13 @@
     .store-tabs-wrap.adding .add-store-section { flex: 1; }
 
     .add-store-trigger {
-      display: inline-flex; align-items: center; gap: 5px;
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 30px; height: 30px; padding: 0;
       background: none;
       border: 1.5px dashed var(--border);
       color: var(--muted); font-family: inherit;
-      font-size: 13px; padding: 6px 12px; border-radius: 20px;
-      cursor: pointer; white-space: nowrap;
+      font-size: 16px; line-height: 1; border-radius: 50%;
+      cursor: pointer;
     }
     .add-store-trigger:active { color: var(--accent); border-color: var(--accent); }
 
@@ -200,18 +201,13 @@
     }
 
     /* ── Store tabs ── */
-    .store-tabs-wrap { padding: 16px 20px 10px; display: flex; gap: 6px; align-items: center; }
-
-    /* one horizontally-scrolling row instead of a wrapping wall of chips */
-    .store-tabs {
-      display: flex; gap: 6px; flex: 1; min-width: 0;
-      overflow-x: auto; overscroll-behavior-x: contain;
-      scrollbar-width: none;
-      margin: -4px 0; padding: 4px 0; /* room for the chip shadow */
-      mask-image: linear-gradient(to left, #000 calc(100% - 28px), transparent);
-      -webkit-mask-image: linear-gradient(to left, #000 calc(100% - 28px), transparent);
-    }
-    .store-tabs::-webkit-scrollbar { display: none; }
+    /* Every store with open items is visible at once (wrapping, no sideways scroll —
+       hidden stores got forgotten). Empty ones fold behind an "עוד" chip, see
+       renderStoreTabs(). The tabs flow straight into the wrap so the ＋ button sits
+       on the last line instead of taking a column of its own. */
+    .store-tabs-wrap { padding: 16px 20px 10px; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+    .store-tabs { display: contents; }
+    .store-more { color: var(--muted); }
 
     .store-tab {
       display: inline-flex; align-items: center; gap: 4px;
@@ -620,11 +616,10 @@
     html[data-theme="sheet"] #settings-btn, html[data-theme="sheet"] #refresh-btn { border: none; background: var(--surface2); border-radius: 50%; color: var(--text); width: 40px; height: 40px; }
     html[data-theme="sheet"] .hero { align-items: baseline; gap: 12px; padding: 0 20px 6px; }
     html[data-theme="sheet"] #hero-title, html[data-theme="sheet"] #hero-sub { display: none; }
-    html[data-theme="sheet"] #big-count { font-size: 84px; font-weight: 700; line-height: .95; letter-spacing: -3px; color: var(--store); font-variant-numeric: tabular-nums; transition: color .25s; }
-    html[data-theme="sheet"] #big-label { font-size: 21px; font-weight: 600; color: var(--text); }
-    html[data-theme="sheet"] .store-tabs-wrap { padding: 8px 20px 14px; }
-    html[data-theme="sheet"] .store-tabs { gap: 20px; mask-image: none; -webkit-mask-image: none; }
-    html[data-theme="sheet"] .store-tab { border: none; background: none; box-shadow: none; padding: 6px 0; border-radius: 0; font-size: 16px; color: var(--muted); }
+    html[data-theme="sheet"] #big-count { font-size: 48px; font-weight: 700; line-height: 1; letter-spacing: -1.5px; color: var(--store); font-variant-numeric: tabular-nums; transition: color .25s; }
+    html[data-theme="sheet"] #big-label { font-size: 18px; font-weight: 600; color: var(--text); }
+    html[data-theme="sheet"] .store-tabs-wrap { padding: 6px 20px 12px; gap: 2px 20px; }
+    html[data-theme="sheet"] .store-tab { border: none; background: none; box-shadow: none; padding: 5px 0; border-radius: 0; font-size: 16px; color: var(--muted); }
     html[data-theme="sheet"] .store-tab.active { background: none; color: var(--text); font-weight: 700; box-shadow: inset 0 -3px 0 var(--c); }
     html[data-theme="sheet"] .store-tab-count, html[data-theme="sheet"] .store-tab.active .store-tab-count { background: none; color: inherit; padding: 0; font-weight: 400; opacity: .6; min-width: 0; }
     html[data-theme="sheet"] .add-store-trigger { border-style: solid; border-color: var(--border); color: var(--muted); }
@@ -655,16 +650,16 @@
     html[data-theme="card"] header { padding-bottom: 10px; }
     html[data-theme="card"] .header-text h1 { font-size: 15px; font-weight: 500; color: var(--muted); letter-spacing: 0; }
     html[data-theme="card"] #settings-btn, html[data-theme="card"] #refresh-btn { border: none; background: var(--surface); border-radius: 12px; color: var(--text); }
-    html[data-theme="card"] .hero { position: relative; overflow: hidden; flex-direction: column; justify-content: flex-end; gap: 4px; margin: 0 16px; padding: 22px 22px 18px; min-height: 150px; border-radius: 26px; color: #fff; background: linear-gradient(140deg, var(--store), color-mix(in oklab, var(--store) 62%, #000)); box-shadow: 0 24px 44px -22px var(--store); transition: background .3s, box-shadow .3s; }
+    html[data-theme="card"] .hero { position: relative; overflow: hidden; flex-direction: column; justify-content: flex-end; gap: 4px; margin: 0 16px; padding: 16px 20px 14px; min-height: 104px; border-radius: 26px; color: #fff; background: linear-gradient(140deg, var(--store), color-mix(in oklab, var(--store) 62%, #000)); box-shadow: 0 24px 44px -22px var(--store); transition: background .3s, box-shadow .3s; }
     html[data-theme="card"] .hero::after { content: ''; position: absolute; width: 190px; height: 190px; left: -60px; top: -70px; border-radius: 50%; border: 28px solid rgba(255,255,255,.1); }
     html[data-theme="card"] #big-count, html[data-theme="card"] #big-label { display: none; }
-    html[data-theme="card"] #hero-title { font-size: 38px; font-weight: 800; line-height: 1.05; letter-spacing: -.5px; overflow-wrap: anywhere; position: relative; }
+    html[data-theme="card"] #hero-title { font-size: 30px; font-weight: 800; line-height: 1.05; letter-spacing: -.5px; overflow-wrap: anywhere; position: relative; }
     html[data-theme="card"] #hero-sub { font-size: 15px; font-weight: 500; opacity: .85; position: relative; }
     html[data-theme="card"] .store-tabs-wrap { padding: 16px 16px 12px; }
     html[data-theme="card"] .store-tab { background: var(--surface); border: none; box-shadow: none; color: var(--muted); font-size: 14px; padding: 8px 14px; }
     html[data-theme="card"] .store-tab.active { background: var(--c); color: #fff; }
     html[data-theme="card"] .store-tab-count { background: rgba(255,255,255,.08); color: inherit; }
-    html[data-theme="card"] .add-store-trigger { border-color: var(--border); color: var(--muted); padding: 8px 14px; font-size: 14px; }
+    html[data-theme="card"] .add-store-trigger { border-color: var(--border); color: var(--muted); width: 35px; height: 35px; }
     html[data-theme="card"] .store-input-row { background: var(--surface); border-color: var(--accent); }
     html[data-theme="card"] .filters { padding: 0 16px 10px; }
     html[data-theme="card"] .filter-btn { background: none; border: none; box-shadow: none; font-size: 14px; color: var(--muted); }
@@ -714,7 +709,7 @@
     html[data-theme="notes"] .store-tab.active { background: var(--surface); border-color: var(--ink); color: var(--ink); box-shadow: 0 3px 0 var(--ink); }
     html[data-theme="notes"] .store-tab-count { background: var(--bg); color: var(--ink); }
     html[data-theme="notes"] .store-tab.active .store-tab-count { background: var(--ink); color: #fff; }
-    html[data-theme="notes"] .add-store-trigger { border: 2px dashed rgba(29,42,35,.35); color: var(--ink); font-size: 15px; padding: 6px 14px; }
+    html[data-theme="notes"] .add-store-trigger { border: 2px dashed rgba(29,42,35,.35); color: var(--ink); width: 34px; height: 34px; }
     html[data-theme="notes"] .store-input-row { border: 2px solid var(--ink); }
     html[data-theme="notes"] .filters { gap: 6px; }
     html[data-theme="notes"] .filter-btn { background: none; border: none; box-shadow: none; color: var(--muted); font-size: 15px; font-weight: 500; }
@@ -774,7 +769,7 @@
     <div class="store-tabs" id="store-tabs"></div>
     <div class="add-store-section">
       <div id="add-store-collapsed">
-        <button class="add-store-trigger" id="show-store-btn">＋ חנות</button>
+        <button class="add-store-trigger" id="show-store-btn" aria-label="הוסף חנות">＋</button>
       </div>
       <div id="add-store-expanded" style="display:none">
         <div class="store-input-row">
@@ -1013,13 +1008,29 @@
     return shoppingItems.filter(i => i.storeId === storeId && !i.done).length;
   }
 
+  let showEmptyStores = false; // "עוד" chip expanded
+
   function renderStoreTabs() {
     storeTabsEl.innerHTML = '';
-    stores.forEach((s, i) => {
-      const tab = makeStoreTab(s.id, s.name, true);
-      tab.style.setProperty('--c', storeColor(i));
+    // busiest stores first; stores with nothing to buy fold behind "עוד" (unless
+    // selected). Colors stay tied to the store's position in `stores`.
+    const tabs = stores.map((s, i) => ({ s, i, n: activeCount(s.id) }))
+      .sort((a, b) => b.n - a.n || a.i - b.i);
+    const foldable = tabs.filter(t => t.n === 0 && t.s.id !== selectedStore);
+    tabs.forEach(t => {
+      if (!showEmptyStores && foldable.includes(t)) return;
+      const tab = makeStoreTab(t.s.id, t.s.name, true);
+      tab.style.setProperty('--c', storeColor(t.i));
       storeTabsEl.appendChild(tab);
     });
+    if (foldable.length) {
+      const more = document.createElement('button');
+      more.className = 'store-tab store-more';
+      more.textContent = showEmptyStores ? 'פחות' : 'עוד ' + foldable.length;
+      more.setAttribute('aria-expanded', showEmptyStores);
+      more.addEventListener('click', () => { showEmptyStores = !showEmptyStores; renderStoreTabs(); });
+      storeTabsEl.appendChild(more);
+    }
   }
 
   function makeStoreTab(id, name, canDelete) {

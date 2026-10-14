@@ -389,7 +389,7 @@ async function setupTwoStores(page) {
     await page.fill('#store-name-input', name);
     await page.press('#store-name-input', 'Enter');
   }
-  await expect(page.locator('.store-tab')).toHaveCount(2);
+  await expect(page.locator('.store-more')).toHaveText('עוד 2'); // both empty, none selected yet
   await page.reload();
   await expect(page.locator('.store-tab.active')).toContainText('סופר');
 }
@@ -431,4 +431,32 @@ test('הקשה קצרה על פריט עדיין פותחת עריכה ולא א
   await items(page).first().locator('.item-text').click();
   await expect(page.locator('.item-edit-input')).toHaveCount(1);
   await expect(page.locator('#store-sheet')).not.toHaveClass(/open/);
+});
+
+test('חנויות ריקות מתקפלות מאחורי "עוד" וחנויות עם פריטים ממוינות לפי כמות', async ({ page }) => {
+  for (const name of ['סופר', 'פארם', 'שוק']) {
+    await page.click('#show-store-btn');
+    await page.fill('#store-name-input', name);
+    await page.press('#store-name-input', 'Enter');
+  }
+  await page.reload();
+  // only the selected (first) store shows; the two empty ones are folded
+  await expect(page.locator('.store-tab:not(.store-more)')).toHaveCount(1);
+  await expect(page.locator('.store-more')).toHaveText('עוד 2');
+
+  await page.click('.store-more');
+  await expect(page.locator('.store-tab:not(.store-more)')).toHaveCount(3);
+  await expect(page.locator('.store-more')).toHaveText('פחות');
+
+  await page.locator('.store-tab', { hasText: 'שוק' }).click();
+  await addItem(page, 'תותים');
+  await addItem(page, 'אבוקדו');
+  await page.click('.store-more'); // fold again
+
+  // שוק is selected and has items; the empty סופר/פארם fold again, and when
+  // unfolded the busiest store comes first
+  await expect(page.locator('.store-tab:not(.store-more)')).toHaveCount(1);
+  await page.click('.store-more');
+  await expect(page.locator('.store-tab:not(.store-more) .store-tab-name'))
+    .toHaveText(['שוק', 'סופר', 'פארם']);
 });
