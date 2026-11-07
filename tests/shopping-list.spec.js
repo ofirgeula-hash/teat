@@ -445,7 +445,7 @@ test('הקשה קצרה על פריט עדיין פותחת עריכה ולא א
   await expect(page.locator('#store-sheet')).not.toHaveClass(/open/);
 });
 
-test('חנויות ריקות מתקפלות מאחורי "עוד" וחנויות עם פריטים ממוינות לפי כמות', async ({ page }) => {
+test('חנויות ריקות מתקפלות מאחורי "עוד" והלשוניות שומרות על הסדר שנקבע', async ({ page }) => {
   for (const name of ['סופר', 'פארם', 'שוק']) {
     await page.click('#show-store-btn');
     await page.fill('#store-name-input', name);
@@ -466,11 +466,11 @@ test('חנויות ריקות מתקפלות מאחורי "עוד" וחנויו�
   await page.click('.store-more'); // fold again
 
   // שוק is selected and has items; the empty סופר/פארם fold again, and when
-  // unfolded the busiest store comes first
+  // unfolded the tabs keep the stores' own order (no sorting by item count)
   await expect(page.locator('.store-tab:not(.store-more)')).toHaveCount(1);
   await page.click('.store-more');
   await expect(page.locator('.store-tab:not(.store-more) .store-tab-name'))
-    .toHaveText(['שוק', 'סופר', 'פארם']);
+    .toHaveText(['סופר', 'פארם', 'שוק']);
 });
 
 test('עריכת שם החנות הנבחרת מכפתור העיפרון', async ({ page }) => {
@@ -501,4 +501,69 @@ test('כפתור עריכת שם החנות לא מופיע בטאבי המשי�
   await expect(page.locator('#rename-store-btn')).toBeVisible();
   await page.click('.nav-tab[data-tab="yarin"]');
   await expect(page.locator('#rename-store-btn')).toBeHidden();
+});
+
+// ── Stores sheet (≡): reorder, rename, delete ─────────────────────────────────
+
+async function setupThreeStores(page) {
+  for (const name of ['סופר', 'פארם', 'שוק']) {
+    await page.click('#show-store-btn');
+    await page.fill('#store-name-input', name);
+    await page.press('#store-name-input', 'Enter');
+  }
+  await page.reload();
+  await page.click('#reorder-btn');
+  await expect(page.locator('#stores-sheet')).toHaveClass(/open/);
+  await page.waitForTimeout(400); // sheet slide-in, so row positions are final
+}
+
+async function dragRow(page, fromIdx, toIdx) {
+  const handles = page.locator('.reorder-row .drag-handle');
+  const from = await handles.nth(fromIdx).boundingBox();
+  const to   = await handles.nth(toIdx).boundingBox();
+  await page.mouse.move(from.x + from.width / 2, from.y + from.height / 2);
+  await page.mouse.down();
+  const steps = 8, dy = (to.y - from.y) + (toIdx > fromIdx ? 10 : -10);
+  for (let i = 1; i <= steps; i++) await page.mouse.move(from.x + from.width / 2, from.y + from.height / 2 + dy * i / steps);
+  await page.mouse.up();
+}
+
+test('גרירה במצב סידור משנה את סדר החנויות ונשמרת', async ({ page }) => {
+  await setupThreeStores(page);
+  const names = page.locator('.reorder-row .reorder-name');
+  await expect(names).toHaveText(['סופר', 'פארם', 'שוק']);
+
+  await dragRow(page, 2, 0); // שוק to the top
+  await expect(names).toHaveText(['שוק', 'סופר', 'פארם']);
+
+  await page.click('#stores-sheet-done');
+  await expect(page.locator('#stores-sheet')).not.toHaveClass(/open/);
+  await page.reload();
+  await page.click('#reorder-btn');
+  await expect(names).toHaveText(['שוק', 'סופר', 'פארם']);
+});
+
+test('שינוי שם ומחיקת חנות מתוך מצב הסידור', async ({ page }) => {
+  await setupThreeStores(page);
+  await page.locator('.reorder-row', { hasText: 'פארם' }).locator('.pencil-btn').click();
+  await page.locator('.reorder-rename-input').fill('גוד פארם');
+  await page.locator('.reorder-rename-input').press('Enter');
+  await expect(page.locator('.reorder-row .reorder-name')).toHaveText(['סופר', 'גוד פארם', 'שוק']);
+
+  page.once('dialog', d => d.accept());
+  await page.locator('.reorder-row', { hasText: 'שוק' }).locator('.delete-btn').click();
+  await expect(page.locator('.reorder-row .reorder-name')).toHaveText(['סופר', 'גוד פארם']);
+  await expect(page.locator('#undo-toast')).toHaveClass(/visible/);
+
+  await page.click('#undo-toast-btn');
+  await expect(page.locator('.reorder-row .reorder-name')).toHaveText(['סופר', 'גוד פארם', 'שוק']);
+});
+
+test('אין כפתור מחיקה על לשוניות החנויות, וכפתור הסידור רק בטאב קניות', async ({ page }) => {
+  await setupThreeStores(page);
+  await page.click('#stores-sheet-done');
+  await expect(page.locator('.store-tab-del')).toHaveCount(0);
+  await expect(page.locator('#reorder-btn')).toBeVisible();
+  await page.click('.nav-tab[data-tab="ofir"]');
+  await expect(page.locator('#reorder-btn')).toBeHidden();
 });
