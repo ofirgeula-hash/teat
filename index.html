@@ -129,7 +129,7 @@
 
     .sync-text { font-size: 11px; color: var(--muted); }
 
-    #refresh-btn {
+    #refresh-btn, #reorder-btn {
       background: none;
       border: 1px solid var(--border);
       color: var(--muted);
@@ -140,7 +140,7 @@
       display: flex; align-items: center; justify-content: center;
       flex-shrink: 0;
     }
-    #refresh-btn:active { color: var(--accent); border-color: var(--accent); }
+    #refresh-btn:active, #reorder-btn:active { color: var(--accent); border-color: var(--accent); }
     #refresh-btn.spinning { animation: spin 0.6s linear; }
     @keyframes spin { to { transform: rotate(360deg); } }
 
@@ -233,11 +233,6 @@
       background: var(--surface2); color: var(--muted);
     }
     .store-tab.active .store-tab-count { background: rgba(255,255,255,.22); color: #fff; }
-    .store-tab-del {
-      font-size: 9px; opacity: 0;
-      transition: opacity .15s; margin-right: -1px;
-    }
-    .store-tab.active .store-tab-del { opacity: 0.65; }
 
     /* ── Filter tabs ── */
     .filters { padding: 0 20px 10px; display: flex; gap: 8px; }
@@ -338,6 +333,37 @@
     .item-main .item-edit-input { user-select: text; -webkit-user-select: text; }
     li.pressing { transform: scale(0.97); transition: transform 400ms var(--ease-out) 120ms; }
 
+    /* Stores sheet (≡ in the header): drag ⋮⋮ to reorder, rename, delete */
+    .settings-done {
+      background: none; border: none; font-family: inherit; font-size: 16px; font-weight: 700;
+      color: var(--text); cursor: pointer; padding: 4px;
+    }
+    .reorder-hint { padding: 12px 20px 0; font-size: 13px; color: var(--muted); }
+    .reorder-list { display: flex; flex-direction: column; padding: 6px 12px 0; }
+    .reorder-empty { padding: 16px 8px; color: var(--muted); font-size: 15px; }
+    .reorder-row {
+      display: flex; align-items: center; gap: 10px;
+      padding: 6px 8px; min-height: 52px; border-radius: 12px;
+      background: var(--surface); position: relative;
+    }
+    .reorder-row.dragging { z-index: 2; box-shadow: 0 8px 24px rgba(0,0,0,.16); }
+    .reorder-name {
+      flex: 1; min-width: 0; font-size: 16px; color: var(--text);
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .reorder-count { font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
+    .reorder-row .pencil-btn { border: none; width: 34px; height: 34px; }
+    .reorder-rename-input {
+      flex: 1; min-width: 0; font: inherit; font-size: 16px; color: var(--text);
+      background: none; border: none; border-bottom: 1.5px solid var(--accent); outline: none;
+      padding: 2px 0; text-align: right; direction: rtl; border-radius: 0;
+    }
+    .drag-handle {
+      width: 34px; height: 44px; padding: 0; border: none; background: none;
+      color: var(--muted); cursor: grab; touch-action: none; flex-shrink: 0;
+    }
+    .reorder-row.dragging .drag-handle { cursor: grabbing; color: var(--text); }
+
     /* Store picker sheet (reuses the settings sheet's overlay + panel) */
     .store-sheet-item {
       padding: 12px 20px 0; font-size: 14px; color: var(--muted);
@@ -416,7 +442,7 @@
       box-shadow: 0 6px 20px rgba(0,0,0,.25);
       opacity: 0; pointer-events: none;
       transition: opacity .2s var(--ease-out), transform .2s var(--ease-out);
-      z-index: 50; max-width: calc(100% - 40px);
+      z-index: 120; max-width: calc(100% - 40px);
     }
     #undo-toast.visible {
       opacity: 1; transform: translateX(-50%) translateY(0);
@@ -577,14 +603,16 @@
       .settings-panel { transition: opacity .2s; }
     }
     /* ── Icons (shared by all themes) ── */
-    #settings-btn, #refresh-btn, .delete-btn { font-size: 0; display: flex; align-items: center; justify-content: center; }
-    #settings-btn::before, #refresh-btn::before, .delete-btn::before {
+    #settings-btn, #refresh-btn, #reorder-btn, .delete-btn, .drag-handle { font-size: 0; display: flex; align-items: center; justify-content: center; }
+    #settings-btn::before, #refresh-btn::before, #reorder-btn::before, .delete-btn::before, .drag-handle::before {
       content: ''; display: block; width: 20px; height: 20px; background: currentColor;
       -webkit-mask: var(--icon) center / contain no-repeat; mask: var(--icon) center / contain no-repeat;
     }
     .delete-btn { width: 34px; height: 34px; padding: 0; }
     .delete-btn::before { width: 18px; height: 18px; }
     #settings-btn { --icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 7h10M18 7h2M4 17h4M12 17h8'/%3E%3Ccircle cx='16' cy='7' r='2'/%3E%3Ccircle cx='10' cy='17' r='2'/%3E%3C/svg%3E"); }
+    #reorder-btn  { --icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 6h11M4 12h11M4 18h11'/%3E%3Cpath d='M19 8l2-2.5L19 3M19 16l2 2.5-2 2.5' transform='translate(-1 0)'/%3E%3C/svg%3E"); }
+    .drag-handle  { --icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='black'%3E%3Ccircle cx='9' cy='6' r='1.7'/%3E%3Ccircle cx='15' cy='6' r='1.7'/%3E%3Ccircle cx='9' cy='12' r='1.7'/%3E%3Ccircle cx='15' cy='12' r='1.7'/%3E%3Ccircle cx='9' cy='18' r='1.7'/%3E%3Ccircle cx='15' cy='18' r='1.7'/%3E%3C/svg%3E"); }
     #refresh-btn  { --icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M21 12a9 9 0 1 1-3-6.7L21 8'/%3E%3Cpath d='M21 3v5h-5'/%3E%3C/svg%3E"); }
     .delete-btn   { --icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3 6h18'/%3E%3Cpath d='M8 6V4h8v2'/%3E%3Cpath d='M6 6l1 14h10l1-14'/%3E%3C/svg%3E"); }
 
@@ -592,12 +620,13 @@
     .hero { display: flex; }
 
     /* Rename the selected store: small pencil after "לקנות ב…", the label turns into an input */
-    #rename-store-btn {
-      align-self: flex-end; margin-bottom: 1px; flex-shrink: 0; width: 28px; height: 28px; padding: 0;
+    #rename-store-btn { align-self: flex-end; margin-bottom: 1px; }
+    .pencil-btn {
+      flex-shrink: 0; width: 28px; height: 28px; padding: 0;
       border: 1.5px solid var(--border); border-radius: 50%; background: none;
       color: var(--muted); cursor: pointer; display: flex; align-items: center; justify-content: center;
     }
-    #rename-store-btn::before {
+    .pencil-btn::before {
       content: ''; width: 14px; height: 14px; background: currentColor;
       -webkit-mask: var(--icon) center / contain no-repeat; mask: var(--icon) center / contain no-repeat;
       --icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 20h4L19 9l-4-4L4 16z'/%3E%3Cpath d='M13.5 6.5l4 4'/%3E%3C/svg%3E");
@@ -634,7 +663,7 @@
     html[data-theme] header { padding-bottom: 4px; }
     html[data-theme] .header-text h1 { font-size: 15px; font-weight: 600; color: var(--muted); letter-spacing: 0; }
     html[data-theme] .sync-text { font-size: 12px; }
-    html[data-theme] #settings-btn, html[data-theme] #refresh-btn { border: none; background: var(--surface2); border-radius: 50%; color: var(--text); width: 40px; height: 40px; }
+    html[data-theme] #settings-btn, html[data-theme] #refresh-btn, html[data-theme] #reorder-btn { border: none; background: var(--surface2); border-radius: 50%; color: var(--text); width: 40px; height: 40px; }
     html[data-theme] .hero { align-items: baseline; gap: 12px; padding: 0 20px 6px; }
     html[data-theme] #hero-title, html[data-theme] #hero-sub { display: none; }
     html[data-theme] #big-count { font-size: 48px; font-weight: 700; line-height: 1; letter-spacing: -1.5px; color: var(--store); font-variant-numeric: tabular-nums; transition: color .25s; }
@@ -667,7 +696,7 @@
     /* ═══ Theme "soft": רך — light gray page, the list in one white rounded card ═══ */
     html[data-theme="soft"] { --bg: #F2F2F5; --surface2: #E6E6EA; --border: #E7E7EB; }
     html[data-theme="soft"], html[data-theme="soft"] body { background: var(--bg); }
-    html[data-theme="soft"] #settings-btn, html[data-theme="soft"] #refresh-btn { background: #fff; }
+    html[data-theme="soft"] #settings-btn, html[data-theme="soft"] #refresh-btn, html[data-theme="soft"] #reorder-btn { background: #fff; }
     html[data-theme="soft"] .filters { background: #E4E4E8; }
     html[data-theme="soft"] ul { background: #fff; border-radius: 16px; overflow: hidden; }
     html[data-theme="soft"] li, html[data-theme="soft"] .add-row { padding: 14px 16px; }
@@ -697,13 +726,14 @@
           <span class="sync-text" id="sync-text">מתחבר…</span>
         </div>
       </div>
+      <button id="reorder-btn" aria-label="סידור חנויות">≡</button>
       <button id="settings-btn" aria-label="הגדרות">⚙️</button>
       <button id="refresh-btn" aria-label="רענן">↻</button>
     </header>
 
     <div class="hero" aria-live="polite">
       <span id="hero-title"></span><span id="big-count"></span><span id="big-label"></span><span id="hero-sub"></span>
-      <button id="rename-store-btn" aria-label="שנה את שם החנות"></button>
+      <button id="rename-store-btn" class="pencil-btn" aria-label="שנה את שם החנות"></button>
     </div>
 
   </div><!-- /top-panel -->
@@ -772,6 +802,18 @@
     </div>
     <p class="store-sheet-item" id="store-sheet-item"></p>
     <div class="store-options" id="store-options"></div>
+  </div>
+
+  <!-- ═══ Stores sheet (≡ in the header): reorder, rename, delete ═══ -->
+  <div class="settings-overlay" id="stores-sheet-overlay"></div>
+  <div class="settings-panel" id="stores-sheet" role="dialog" aria-modal="true" aria-labelledby="stores-sheet-title">
+    <div class="settings-handle"></div>
+    <div class="settings-header">
+      <h2 id="stores-sheet-title">סידור חנויות</h2>
+      <button class="settings-done" id="stores-sheet-done">סיום</button>
+    </div>
+    <p class="reorder-hint">גרור את ⋮⋮ כדי לשנות את הסדר</p>
+    <div class="reorder-list" id="reorder-list"></div>
   </div>
 
   <!-- ═══ Settings overlay + panel ═══ -->
@@ -958,14 +1000,13 @@
 
   function renderStoreTabs() {
     storeTabsEl.innerHTML = '';
-    // busiest stores first; stores with nothing to buy fold behind "עוד" (unless
-    // selected). Colors stay tied to the store's position in `stores`.
-    const tabs = stores.map((s, i) => ({ s, i, n: activeCount(s.id) }))
-      .sort((a, b) => b.n - a.n || a.i - b.i);
+    // in the order set in the stores sheet; stores with nothing to buy fold behind
+    // "עוד" (unless selected)
+    const tabs = stores.map((s, i) => ({ s, i, n: activeCount(s.id) }));
     const foldable = tabs.filter(t => t.n === 0 && t.s.id !== selectedStore);
     tabs.forEach(t => {
       if (!showEmptyStores && foldable.includes(t)) return;
-      const tab = makeStoreTab(t.s.id, t.s.name, true);
+      const tab = makeStoreTab(t.s.id, t.s.name);
       tab.style.setProperty('--c', storeColor(t.i));
       storeTabsEl.appendChild(tab);
     });
@@ -977,9 +1018,10 @@
       more.addEventListener('click', () => { showEmptyStores = !showEmptyStores; renderStoreTabs(); });
       storeTabsEl.appendChild(more);
     }
+    if (document.getElementById('stores-sheet').classList.contains('open')) renderReorderList();
   }
 
-  function makeStoreTab(id, name, canDelete) {
+  function makeStoreTab(id, name) {
     const btn = document.createElement('button');
     btn.className = 'store-tab' + (selectedStore === id ? ' active' : '');
 
@@ -992,19 +1034,6 @@
     countSpan.className = 'store-tab-count';
     countSpan.textContent = activeCount(id);
     btn.appendChild(countSpan);
-
-    if (canDelete) {
-      const x = document.createElement('span');
-      x.className = 'store-tab-del';
-      x.textContent = '✕';
-      x.setAttribute('role', 'button');
-      x.setAttribute('aria-label', 'מחק חנות');
-      x.addEventListener('click', e => {
-        e.stopPropagation();
-        requestDeleteStore(id, name);
-      });
-      btn.appendChild(x);
-    }
 
     btn.addEventListener('click', () => {
       selectedStore = id;
@@ -1106,6 +1135,140 @@
       }
     });
   }
+
+  /* ── Stores sheet: drag ⋮⋮ to reorder, rename, delete ── */
+  const storesSheetEl = document.getElementById('stores-sheet');
+  const reorderListEl = document.getElementById('reorder-list');
+
+  function openStoresSheet() {
+    renderReorderList();
+    document.getElementById('stores-sheet-overlay').classList.add('open');
+    storesSheetEl.classList.add('open');
+  }
+  function closeStoresSheet() {
+    if (storesSheetEl.contains(document.activeElement)) document.activeElement.blur(); // saves an open rename
+    document.getElementById('stores-sheet-overlay').classList.remove('open');
+    storesSheetEl.classList.remove('open');
+  }
+
+  function renderReorderList() {
+    reorderListEl.innerHTML = '';
+    if (!stores.length) {
+      const empty = document.createElement('p');
+      empty.className = 'reorder-empty'; empty.textContent = 'אין חנויות עדיין';
+      reorderListEl.appendChild(empty);
+      return;
+    }
+    stores.forEach((s, i) => {
+      const row = document.createElement('div');
+      row.className = 'reorder-row';
+      row.dataset.id = s.id;
+      row.style.setProperty('--c', storeColor(i));
+
+      const dot = document.createElement('span');
+      dot.className = 'store-option-dot';
+      const name = document.createElement('span');
+      name.className = 'reorder-name'; name.textContent = s.name;
+      const count = document.createElement('span');
+      count.className = 'reorder-count'; count.textContent = activeCount(s.id) || '';
+
+      const pencil = document.createElement('button');
+      pencil.className = 'pencil-btn';
+      pencil.setAttribute('aria-label', 'שנה שם ל' + s.name);
+      pencil.addEventListener('click', () => startRowRename(name, s.id));
+
+      const del = document.createElement('button');
+      del.className = 'delete-btn';
+      del.setAttribute('aria-label', 'מחק את ' + s.name);
+      del.addEventListener('click', () => requestDeleteStore(s.id, s.name));
+
+      const handle = document.createElement('button');
+      handle.className = 'drag-handle';
+      handle.setAttribute('aria-label', 'גרור כדי לשנות את המיקום של ' + s.name);
+      handle.addEventListener('pointerdown', e => startDrag(e, row, handle));
+
+      row.append(dot, name, count, pencil, del, handle);
+      reorderListEl.appendChild(row);
+    });
+  }
+
+  function startRowRename(nameEl, id) {
+    const store = stores.find(s => s.id === id);
+    if (!store) return;
+    const inp = document.createElement('input');
+    inp.type = 'text'; inp.className = 'reorder-rename-input';
+    inp.value = store.name;
+    inp.setAttribute('aria-label', 'שם החנות');
+    let cancelled = false;
+    inp.addEventListener('keydown', e => {
+      if (e.key === 'Enter') inp.blur();
+      if (e.key === 'Escape') { cancelled = true; inp.blur(); }
+    });
+    inp.addEventListener('blur', () => {
+      if (inp.isConnected) inp.replaceWith(nameEl);
+      if (!cancelled) renameStore(id, inp.value);
+    });
+    nameEl.replaceWith(inp);
+    inp.focus();
+    inp.select();
+  }
+
+  // The row follows the finger; whenever it passes half of a neighbour, the two swap
+  // in the DOM (always by moving the neighbour: moving the dragged row would drop its
+  // pointer capture). On release the new order is applied to `stores` and saved.
+  function startDrag(e, row, handle) {
+    if (e.button !== 0) return;
+    e.preventDefault();
+    handle.setPointerCapture(e.pointerId);
+    row.classList.add('dragging');
+    let startY = e.clientY;
+
+    const move = ev => {
+      let dy = ev.clientY - startY;
+      let prev, next;
+      while ((prev = row.previousElementSibling) && dy < -prev.offsetHeight / 2) {
+        reorderListEl.insertBefore(prev, row.nextElementSibling);
+        startY -= prev.offsetHeight; dy += prev.offsetHeight;
+      }
+      while ((next = row.nextElementSibling) && dy > next.offsetHeight / 2) {
+        reorderListEl.insertBefore(next, row);
+        startY += next.offsetHeight; dy -= next.offsetHeight;
+      }
+      row.style.transform = 'translateY(' + dy + 'px)';
+    };
+    const end = () => {
+      handle.removeEventListener('pointermove', move);
+      handle.removeEventListener('pointerup', end);
+      handle.removeEventListener('pointercancel', end);
+      row.classList.remove('dragging');
+      row.style.transform = '';
+      const ids = [...reorderListEl.children].map(r => r.dataset.id);
+      saveStoreOrder(ids);
+    };
+    handle.addEventListener('pointermove', move);
+    handle.addEventListener('pointerup', end);
+    handle.addEventListener('pointercancel', end);
+  }
+
+  async function saveStoreOrder(ids) {
+    stores.sort((a, b) => ids.indexOf(a.id) - ids.indexOf(b.id));
+    const changed = stores.filter((s, i) => s.order !== i);
+    if (!changed.length) return;
+    changed.forEach(s => { s.order = stores.indexOf(s); });
+    cacheLocally();
+    renderStoreTabs();
+    render();
+    try {
+      const batch = db.batch();
+      changed.filter(s => !s.id.startsWith('tmp_'))
+             .forEach(s => batch.update(storesCol.doc(s.id), { order: s.order }));
+      await batch.commit();
+    } catch {}
+  }
+
+  document.getElementById('reorder-btn').addEventListener('click', openStoresSheet);
+  document.getElementById('stores-sheet-done').addEventListener('click', closeStoresSheet);
+  document.getElementById('stores-sheet-overlay').addEventListener('click', closeStoresSheet);
 
   /* ── Add-store UI ── */
   function showStoreInput() {
@@ -1340,6 +1503,7 @@
     const isShopping = activeTab === 'shopping';
     document.querySelector('.store-tabs-wrap').style.display    = isShopping ? '' : 'none';
     document.querySelector('.add-store-section').style.display  = isShopping ? '' : 'none';
+    document.getElementById('reorder-btn').style.display        = isShopping ? '' : 'none';
   }
 
   document.querySelectorAll('.nav-tab').forEach(btn => {
