@@ -19,15 +19,17 @@
     /* Pick the theme before first paint, and load only that theme's font */
     var THEME_FONTS = {
       sheet: 'IBM+Plex+Sans+Hebrew:wght@400;600;700',
-      card:  'Rubik:wght@400;500;800',
-      notes: 'Fredoka:wght@400;500;600',
+      soft:  'IBM+Plex+Sans+Hebrew:wght@400;600;700',
+      paper: 'IBM+Plex+Sans+Hebrew:wght@400;600;700',
     };
+    var RETIRED_THEMES = { card: 'soft', notes: 'paper' }; // devices that still have the old ones saved
     function themeFontUrl(t) {
       return 'https://fonts.googleapis.com/css2?family=' + THEME_FONTS[t] + '&display=swap';
     }
     (function () {
       var t = 'sheet';
       try { t = localStorage.getItem('shopping-list-theme') || 'sheet'; } catch (e) {}
+      t = RETIRED_THEMES[t] || t;
       if (!THEME_FONTS[t]) t = 'sheet';
       document.documentElement.dataset.theme = t;
       document.write('<link rel="stylesheet" id="theme-font" href="' + themeFontUrl(t) + '">');
@@ -603,139 +605,64 @@
     .theme-btn.sel { border-color: var(--text); box-shadow: inset 0 0 0 1px var(--text); font-weight: 700; }
     .theme-swatch { width: 44px; height: 28px; border-radius: 8px; border: 1px solid rgba(0,0,0,.12); }
     .theme-swatch.sheet { background: linear-gradient(90deg, #fff 55%, #2E6BFF 55% 70%, #fff 70%); }
-    .theme-swatch.card  { background: radial-gradient(circle at 70% 40%, #3D7BFF 0 9px, #0E1014 10px); }
-    .theme-swatch.notes { background: linear-gradient(90deg, #CBEFDD 33%, #E2D8FF 33% 66%, #FFEAA6 66%); }
+    .theme-swatch.soft  { background: linear-gradient(#F2F2F5 25%, #fff 25% 75%, #F2F2F5 75%); }
+    .theme-swatch.paper { background: linear-gradient(90deg, #FAF8F4 55%, #C2683A 55% 70%, #FAF8F4 70%); }
 
-    /* ═══ Theme "sheet": גיליון — לבן, מספר ענק, צבע לכל חנות ═══ */
-    html[data-theme="sheet"] { --bg: #ffffff; --surface: #ffffff; --surface2: #F3F4F6; --text: #15171C; --muted: #8B919B; --border: #ECEEF1; --accent: #15171C; --store-colors: #2E6BFF, #0E9F77, #F2661B, #D63F8C, #7A5AF8, #B58900; }
-    html[data-theme="sheet"], html[data-theme="sheet"] body { font-family: 'IBM Plex Sans Hebrew', -apple-system, sans-serif; background: #fff; }
-    html[data-theme="sheet"] .top-panel { background: none; box-shadow: none; border-radius: 0; padding-bottom: 0; }
-    html[data-theme="sheet"] header { padding-bottom: 4px; }
-    html[data-theme="sheet"] .header-text h1 { font-size: 15px; font-weight: 600; color: var(--muted); letter-spacing: 0; }
-    html[data-theme="sheet"] .sync-text { font-size: 12px; }
-    html[data-theme="sheet"] #settings-btn, html[data-theme="sheet"] #refresh-btn { border: none; background: var(--surface2); border-radius: 50%; color: var(--text); width: 40px; height: 40px; }
-    html[data-theme="sheet"] .hero { align-items: baseline; gap: 12px; padding: 0 20px 6px; }
-    html[data-theme="sheet"] #hero-title, html[data-theme="sheet"] #hero-sub { display: none; }
-    html[data-theme="sheet"] #big-count { font-size: 48px; font-weight: 700; line-height: 1; letter-spacing: -1.5px; color: var(--store); font-variant-numeric: tabular-nums; transition: color .25s; }
-    html[data-theme="sheet"] #big-label { font-size: 18px; font-weight: 600; color: var(--text); }
-    html[data-theme="sheet"] .store-tabs-wrap { padding: 6px 20px 12px; gap: 2px 20px; }
-    html[data-theme="sheet"] .store-tab { border: none; background: none; box-shadow: none; padding: 5px 0; border-radius: 0; font-size: 16px; color: var(--muted); }
-    html[data-theme="sheet"] .store-tab.active { background: none; color: var(--text); font-weight: 700; box-shadow: inset 0 -3px 0 var(--c); }
-    html[data-theme="sheet"] .store-tab-count, html[data-theme="sheet"] .store-tab.active .store-tab-count { background: none; color: inherit; padding: 0; font-weight: 400; opacity: .6; min-width: 0; }
-    html[data-theme="sheet"] .add-store-trigger { border-style: solid; border-color: var(--border); color: var(--muted); }
-    html[data-theme="sheet"] .filters { margin: 0 20px 6px; padding: 3px; background: var(--surface2); border-radius: 12px; gap: 0; }
-    html[data-theme="sheet"] .filter-btn { border: none; background: none; box-shadow: none; font-size: 14px; padding: 7px 4px; }
-    html[data-theme="sheet"] .filter-btn.active { background: #fff; color: var(--text); box-shadow: 0 1px 3px rgba(0,0,0,.1); }
-    html[data-theme="sheet"] ul { gap: 0; }
-    html[data-theme="sheet"] li { border: none; border-bottom: 1px solid var(--border); border-radius: 0; box-shadow: none; padding: 15px 0; background: none; }
-    html[data-theme="sheet"] li::before { display: none; }
-    html[data-theme="sheet"] .add-row { border: none; border-bottom: 1px solid var(--border); border-radius: 0; padding: 15px 0; }
-    html[data-theme="sheet"] .add-row-icon { color: var(--store); }
-    html[data-theme="sheet"] .item-text { font-size: 18px; }
-    html[data-theme="sheet"] .checkbox { width: 26px; height: 26px; border-color: #C9CDD3; }
-    html[data-theme="sheet"] .checkbox:checked { background: var(--store); border-color: var(--store); }
-    html[data-theme="sheet"] .urgent-btn { border: none; background: none; }
-    html[data-theme="sheet"] .urgent-btn.on { background: #FDECEC; color: #E5484D; border-radius: 50%; }
-    html[data-theme="sheet"] li:has(.urgent-btn.on) .item-text { font-weight: 600; }
-    html[data-theme="sheet"] .delete-btn { color: #B4B9C1; }
-    html[data-theme="sheet"] .bottom-nav { border-top: 1px solid var(--border); background: #fff; }
-    html[data-theme="sheet"] .nav-tab { font-size: 14px; }
-    html[data-theme="sheet"] .nav-tab.active { background: none; color: var(--text); box-shadow: inset 0 3px 0 var(--text); border-radius: 0; }
-    html[data-theme="sheet"] #notify-action-btn { background: var(--text); }
+    /* ═══ Shared layout for every theme, and theme "sheet" (גיליון) itself: white, a big
+       count, a color per store. "soft" and "paper" below only change surfaces and colors. ═══ */
+    html[data-theme] { --bg: #ffffff; --surface: #ffffff; --surface2: #F3F4F6; --text: #15171C; --muted: #8B919B; --border: #ECEEF1; --accent: #15171C; --store-colors: #2E6BFF, #0E9F77, #F2661B, #D63F8C, #7A5AF8, #B58900; }
+    html[data-theme], html[data-theme] body { font-family: 'IBM Plex Sans Hebrew', -apple-system, sans-serif; background: #fff; }
+    html[data-theme] .top-panel { background: none; box-shadow: none; border-radius: 0; padding-bottom: 0; }
+    html[data-theme] header { padding-bottom: 4px; }
+    html[data-theme] .header-text h1 { font-size: 15px; font-weight: 600; color: var(--muted); letter-spacing: 0; }
+    html[data-theme] .sync-text { font-size: 12px; }
+    html[data-theme] #settings-btn, html[data-theme] #refresh-btn { border: none; background: var(--surface2); border-radius: 50%; color: var(--text); width: 40px; height: 40px; }
+    html[data-theme] .hero { align-items: baseline; gap: 12px; padding: 0 20px 6px; }
+    html[data-theme] #hero-title, html[data-theme] #hero-sub { display: none; }
+    html[data-theme] #big-count { font-size: 48px; font-weight: 700; line-height: 1; letter-spacing: -1.5px; color: var(--store); font-variant-numeric: tabular-nums; transition: color .25s; }
+    html[data-theme] #big-label { font-size: 18px; font-weight: 600; color: var(--text); }
+    html[data-theme] .store-tabs-wrap { padding: 6px 20px 12px; gap: 2px 20px; }
+    html[data-theme] .store-tab { border: none; background: none; box-shadow: none; padding: 5px 0; border-radius: 0; font-size: 16px; color: var(--muted); }
+    html[data-theme] .store-tab.active { background: none; color: var(--text); font-weight: 700; box-shadow: inset 0 -3px 0 var(--c); }
+    html[data-theme] .store-tab-count, html[data-theme] .store-tab.active .store-tab-count { background: none; color: inherit; padding: 0; font-weight: 400; opacity: .6; min-width: 0; }
+    html[data-theme] .add-store-trigger { border-style: solid; border-color: var(--border); color: var(--muted); }
+    html[data-theme] .filters { margin: 0 20px 6px; padding: 3px; background: var(--surface2); border-radius: 12px; gap: 0; }
+    html[data-theme] .filter-btn { border: none; background: none; box-shadow: none; font-size: 14px; padding: 7px 4px; }
+    html[data-theme] .filter-btn.active { background: #fff; color: var(--text); box-shadow: 0 1px 3px rgba(0,0,0,.1); }
+    html[data-theme] ul { gap: 0; }
+    html[data-theme] li { border: none; border-bottom: 1px solid var(--border); border-radius: 0; box-shadow: none; padding: 15px 0; background: none; }
+    html[data-theme] li::before { display: none; }
+    html[data-theme] .add-row { border: none; border-bottom: 1px solid var(--border); border-radius: 0; padding: 15px 0; }
+    html[data-theme] .add-row-icon { color: var(--store); }
+    html[data-theme] .item-text { font-size: 18px; }
+    html[data-theme] .checkbox { width: 26px; height: 26px; border-color: #C9CDD3; }
+    html[data-theme] .checkbox:checked { background: var(--store); border-color: var(--store); }
+    html[data-theme] .urgent-btn { border: none; background: none; }
+    html[data-theme] .urgent-btn.on { background: #FDECEC; color: #E5484D; border-radius: 50%; }
+    html[data-theme] li:has(.urgent-btn.on) .item-text { font-weight: 600; }
+    html[data-theme] .delete-btn { color: #B4B9C1; }
+    html[data-theme] .bottom-nav { border-top: 1px solid var(--border); background: #fff; }
+    html[data-theme] .nav-tab { font-size: 14px; }
+    html[data-theme] .nav-tab.active { background: none; color: var(--text); box-shadow: inset 0 3px 0 var(--text); border-radius: 0; }
+    html[data-theme] #notify-action-btn { background: var(--text); }
 
-    /* ═══ Theme "card": כרטיס — כהה, החנות הפעילה היא כרטיס צבעוני ═══ */
-    html[data-theme="card"] { --bg: #0E1014; --surface: #181B21; --surface2: #21252D; --text: #F3F4F6; --muted: #8D94A1; --border: #2A2E37; --accent: #3D7BFF; --store-colors: #3D7BFF, #12B886, #FF7A2F, #F0509A, #8B6CFF, #D9A900; color-scheme: dark; }
-    html[data-theme="card"], html[data-theme="card"] body { font-family: 'Rubik', -apple-system, sans-serif; background: var(--bg); }
-    html[data-theme="card"] .top-panel { background: none; box-shadow: none; border-radius: 0; padding-bottom: 0; }
-    html[data-theme="card"] header { padding-bottom: 10px; }
-    html[data-theme="card"] .header-text h1 { font-size: 15px; font-weight: 500; color: var(--muted); letter-spacing: 0; }
-    html[data-theme="card"] #settings-btn, html[data-theme="card"] #refresh-btn { border: none; background: var(--surface); border-radius: 12px; color: var(--text); }
-    html[data-theme="card"] .hero { position: relative; overflow: hidden; flex-direction: column; justify-content: flex-end; gap: 4px; margin: 0 16px; padding: 16px 20px 14px; min-height: 104px; border-radius: 26px; color: #fff; background: linear-gradient(140deg, var(--store), color-mix(in oklab, var(--store) 62%, #000)); box-shadow: 0 24px 44px -22px var(--store); transition: background .3s, box-shadow .3s; }
-    html[data-theme="card"] .hero::after { content: ''; position: absolute; width: 190px; height: 190px; left: -60px; top: -70px; border-radius: 50%; border: 28px solid rgba(255,255,255,.1); }
-    html[data-theme="card"] #big-count, html[data-theme="card"] #big-label { display: none; }
-    html[data-theme="card"] #hero-title { font-size: 30px; font-weight: 800; line-height: 1.05; letter-spacing: -.5px; overflow-wrap: anywhere; position: relative; }
-    html[data-theme="card"] #hero-sub { font-size: 15px; font-weight: 500; opacity: .85; position: relative; }
-    html[data-theme="card"] .store-tabs-wrap { padding: 16px 16px 12px; }
-    html[data-theme="card"] .store-tab { background: var(--surface); border: none; box-shadow: none; color: var(--muted); font-size: 14px; padding: 8px 14px; }
-    html[data-theme="card"] .store-tab.active { background: var(--c); color: #fff; }
-    html[data-theme="card"] .store-tab-count { background: rgba(255,255,255,.08); color: inherit; }
-    html[data-theme="card"] .add-store-trigger { border-color: var(--border); color: var(--muted); width: 35px; height: 35px; }
-    html[data-theme="card"] .store-input-row { background: var(--surface); border-color: var(--accent); }
-    html[data-theme="card"] .filters { padding: 0 16px 10px; }
-    html[data-theme="card"] .filter-btn { background: none; border: none; box-shadow: none; font-size: 14px; color: var(--muted); }
-    html[data-theme="card"] .filter-btn.active { background: var(--surface2); color: var(--text); }
-    html[data-theme="card"] #list-container { padding: 0 16px 16px; }
-    html[data-theme="card"] li { background: var(--surface); border: none; box-shadow: none; border-radius: 18px; padding: 14px; }
-    html[data-theme="card"] li::before { display: none; }
-    html[data-theme="card"] .add-row { background: none; border: 1.5px dashed var(--border); }
-    html[data-theme="card"] .add-row-icon { color: var(--store); }
-    html[data-theme="card"] .item-text { font-size: 17px; }
-    html[data-theme="card"] li.done .item-text { color: #5F6673; }
-    html[data-theme="card"] .checkbox { border-color: #3A404B; width: 26px; height: 26px; }
-    html[data-theme="card"] .checkbox:checked { background: var(--store); border-color: var(--store); }
-    html[data-theme="card"] .urgent-btn { border: none; color: #4A505C; }
-    html[data-theme="card"] .urgent-btn:not(.on) { color: #4A505C; }
-    html[data-theme="card"] .urgent-btn.on { background: rgba(255,92,92,.14); color: #FF6B6B; }
-    html[data-theme="card"] li:has(.urgent-btn.on) { box-shadow: inset -3px 0 0 #FF6B6B; }
-    html[data-theme="card"] .delete-btn { color: #5F6673; }
-    html[data-theme="card"] .bottom-nav { background: rgba(14,16,20,.85); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border-top: 1px solid var(--border); }
-    html[data-theme="card"] .nav-tab.active { background: var(--text); color: var(--bg); }
-    html[data-theme="card"] #undo-toast { background: var(--text); color: var(--bg); }
-    html[data-theme="card"] #undo-toast-btn { color: var(--accent); }
-    html[data-theme="card"] .settings-panel { background: var(--surface); }
-    html[data-theme="card"] .settings-overlay { background: rgba(0,0,0,.6); }
-    html[data-theme="card"] .time-input { color: var(--text); color-scheme: dark; }
-    html[data-theme="card"] .toggle::after { background: #fff; }
-    html[data-theme="card"] #hero-title { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+    /* ═══ Theme "soft": רך — light gray page, the list in one white rounded card ═══ */
+    html[data-theme="soft"] { --bg: #F2F2F5; --surface2: #E6E6EA; --border: #E7E7EB; }
+    html[data-theme="soft"], html[data-theme="soft"] body { background: var(--bg); }
+    html[data-theme="soft"] #settings-btn, html[data-theme="soft"] #refresh-btn { background: #fff; }
+    html[data-theme="soft"] .filters { background: #E4E4E8; }
+    html[data-theme="soft"] ul { background: #fff; border-radius: 16px; overflow: hidden; }
+    html[data-theme="soft"] li, html[data-theme="soft"] .add-row { padding: 14px 16px; }
+    html[data-theme="soft"] li:last-child { border-bottom: none; }
+    html[data-theme="soft"] .bottom-nav { background: var(--bg); }
 
-    /* ═══ Theme "notes": פתקים — צבע לכל רשימה, עגול ושובב ═══ */
-    html[data-theme="notes"] { --bg: #CBEFDD; --surface: #ffffff; --surface2: #F4F6F1; --text: #1D2A23; --muted: #5E6E66; --border: rgba(29,42,35,.14); --accent: #1D2A23; --store-colors: #1D2A23, #1D2A23; --ink: #1D2A23; }
-    html[data-theme="notes"] body[data-tab="yarin"] { --bg: #E2D8FF; }
-    html[data-theme="notes"] body[data-tab="ofir"] { --bg: #FFEAA6; }
-    html[data-theme="notes"], html[data-theme="notes"] body { font-family: 'Fredoka', 'Varela Round', sans-serif; }
-    html[data-theme="notes"] body { background: var(--bg); transition: background-color .35s; }
-    html[data-theme="notes"] #app { background: var(--bg); transition: background-color .35s; }
-    html[data-theme="notes"] .top-panel { background: none; box-shadow: none; border-radius: 0; padding-bottom: 0; }
-    html[data-theme="notes"] header { padding-bottom: 6px; }
-    html[data-theme="notes"] .header-text h1 { font-size: 30px; font-weight: 600; color: var(--ink); letter-spacing: -.3px; }
-    html[data-theme="notes"] .sync-text { color: var(--muted); }
-    html[data-theme="notes"] #settings-btn, html[data-theme="notes"] #refresh-btn { background: var(--surface); border: 2px solid var(--ink); color: var(--ink); border-radius: 14px; box-shadow: 0 3px 0 var(--ink); width: 40px; height: 40px; }
-    html[data-theme="notes"] #settings-btn:active, html[data-theme="notes"] #refresh-btn:active { box-shadow: 0 1px 0 var(--ink); transform: translateY(2px); }
-    html[data-theme="notes"] .hero { padding: 0 20px 4px; }
-    html[data-theme="notes"] #hero-title, html[data-theme="notes"] #big-count, html[data-theme="notes"] #big-label { display: none; }
-    html[data-theme="notes"] #hero-sub { display: inline-block; background: var(--ink); color: #fff; font-size: 15px; font-weight: 500; padding: 4px 12px; border-radius: 999px; transform: rotate(-2deg); }
-    html[data-theme="notes"] .store-tabs-wrap { padding: 14px 20px 12px; }
-    html[data-theme="notes"] .store-tab { background: rgba(255,255,255,.55); border: 2px solid transparent; box-shadow: none; color: var(--ink); font-size: 15px; font-weight: 500; padding: 6px 14px; }
-    html[data-theme="notes"] .store-tab.active { background: var(--surface); border-color: var(--ink); color: var(--ink); box-shadow: 0 3px 0 var(--ink); }
-    html[data-theme="notes"] .store-tab-count { background: var(--bg); color: var(--ink); }
-    html[data-theme="notes"] .store-tab.active .store-tab-count { background: var(--ink); color: #fff; }
-    html[data-theme="notes"] .add-store-trigger { border: 2px dashed rgba(29,42,35,.35); color: var(--ink); width: 34px; height: 34px; }
-    html[data-theme="notes"] .store-input-row { border: 2px solid var(--ink); }
-    html[data-theme="notes"] .filters { gap: 6px; }
-    html[data-theme="notes"] .filter-btn { background: none; border: none; box-shadow: none; color: var(--muted); font-size: 15px; font-weight: 500; }
-    html[data-theme="notes"] .filter-btn.active { background: rgba(255,255,255,.7); color: var(--ink); }
-    html[data-theme="notes"] ul { gap: 10px; }
-    html[data-theme="notes"] li { background: var(--surface); border: 2px solid var(--ink); border-radius: 20px; box-shadow: 0 3px 0 var(--ink); padding: 13px 14px; }
-    html[data-theme="notes"] li::before { display: none; }
-    html[data-theme="notes"] .add-row { background: rgba(255,255,255,.45); border: 2px dashed rgba(29,42,35,.35); box-shadow: none; }
-    html[data-theme="notes"] .add-row-icon, html[data-theme="notes"] .add-row-placeholder { color: var(--ink); }
-    html[data-theme="notes"] .item-text { font-size: 18px; font-weight: 500; }
-    html[data-theme="notes"] .checkbox { border-radius: 9px; border: 2.5px solid var(--ink); width: 26px; height: 26px; }
-    html[data-theme="notes"] .checkbox:checked { background: var(--ink); border-color: var(--ink); }
-    html[data-theme="notes"] .urgent-btn { border: 2px solid transparent; color: rgba(29,42,35,.3); border-radius: 10px; }
-    html[data-theme="notes"] .urgent-btn:not(.on) { color: rgba(29,42,35,.3); }
-    html[data-theme="notes"] .urgent-btn.on { background: #FF6B5A; border-color: var(--ink); color: #fff; }
-    html[data-theme="notes"] .delete-btn { color: rgba(29,42,35,.45); }
-    html[data-theme="notes"] .bottom-nav { background: var(--surface); border-top: 2px solid var(--ink); }
-    html[data-theme="notes"] .nav-tab { color: var(--ink); font-size: 15px; font-weight: 500; border-radius: 14px; }
-    html[data-theme="notes"] .nav-tab.active { color: var(--ink); border: 2px solid var(--ink); font-weight: 600; }
-    html[data-theme="notes"] .nav-tab[data-tab="shopping"].active { background: #CBEFDD; }
-    html[data-theme="notes"] .nav-tab[data-tab="yarin"].active { background: #E2D8FF; }
-    html[data-theme="notes"] .nav-tab[data-tab="ofir"].active { background: #FFEAA6; }
-    html[data-theme="notes"] #undo-toast { background: var(--ink); border-radius: 16px; }
-    html[data-theme="notes"] #undo-toast-btn { color: #FFEAA6; }
-    html[data-theme="notes"] .settings-panel { border-top: 2px solid var(--ink); }
-    html[data-theme="notes"] #notify-action-btn { background: var(--ink); border-radius: 16px; }
+    /* ═══ Theme "paper": נייר — warm off-white, warm ink, muted store colors ═══ */
+    html[data-theme="paper"] { --bg: #FAF8F4; --surface: #FFFDF9; --surface2: #F0ECE4; --text: #2B2925; --muted: #8C867B; --border: #ECE6DB; --accent: #2B2925; --store-colors: #3D6FB6, #3E8E6E, #C2683A, #B0527A, #6F5FB8, #A0812A; }
+    html[data-theme="paper"], html[data-theme="paper"] body { background: var(--bg); }
+    html[data-theme="paper"] .filter-btn.active { background: var(--surface); }
+    html[data-theme="paper"] .bottom-nav { background: var(--bg); }
+    html[data-theme="paper"] .checkbox { border-color: #CFC8BA; }
+    html[data-theme="paper"] .delete-btn { color: #BDB6A8; }
   </style>
 </head>
 <body>
@@ -842,8 +769,8 @@
         <label class="section-label">עיצוב</label>
         <div class="theme-picker">
           <button class="theme-btn" data-theme="sheet"><span class="theme-swatch sheet"></span>גיליון</button>
-          <button class="theme-btn" data-theme="card"><span class="theme-swatch card"></span>כרטיס</button>
-          <button class="theme-btn" data-theme="notes"><span class="theme-swatch notes"></span>פתקים</button>
+          <button class="theme-btn" data-theme="soft"><span class="theme-swatch soft"></span>רך</button>
+          <button class="theme-btn" data-theme="paper"><span class="theme-swatch paper"></span>נייר</button>
         </div>
       </div>
 
@@ -1346,7 +1273,7 @@
       ? (shopping ? 'אין מה לקנות' : 'אין משימות פתוחות')
       : open + ' ' + (shopping ? plural('פריט לקנות', 'פריטים לקנות') : plural('משימה פתוחה', 'משימות פתוחות'));
 
-    // status bar follows the theme's (and in "notes", the list's) background
+    // status bar follows the theme's background
     document.querySelector('meta[name="theme-color"]').content =
       getComputedStyle(document.body).getPropertyValue('--bg').trim() || '#ffffff';
   }

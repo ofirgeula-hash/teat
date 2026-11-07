@@ -357,12 +357,24 @@ test('עיצוב ברירת המחדל הוא גיליון', async ({ page }) =>
 
 test('החלפת עיצוב נשמרת לאחר רענון', async ({ page }) => {
   await page.click('#settings-btn');
-  await page.click('.theme-btn[data-theme="card"]');
-  await expect(page.locator('html')).toHaveAttribute('data-theme', 'card');
-  await expect(page.locator('.theme-btn[data-theme="card"]')).toHaveClass(/sel/);
+  await page.click('.theme-btn[data-theme="soft"]');
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'soft');
+  await expect(page.locator('.theme-btn[data-theme="soft"]')).toHaveClass(/sel/);
 
   await page.reload();
-  await expect(page.locator('html')).toHaveAttribute('data-theme', 'card');
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'soft');
+});
+
+test('עיצובים שהוסרו (כרטיס, פתקים) עוברים לרך ולנייר', async ({ page }) => {
+  await page.evaluate(() => localStorage.setItem('shopping-list-theme', 'card'));
+  await page.reload();
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'soft');
+
+  await page.evaluate(() => localStorage.setItem('shopping-list-theme', 'notes'));
+  await page.reload();
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'paper');
+  await page.click('#settings-btn');
+  await expect(page.locator('.theme-btn[data-theme="paper"]')).toHaveClass(/sel/);
 });
 
 test('הכותרת הגדולה סופרת רק פריטים פתוחים ברשימה הנוכחית', async ({ page }) => {
