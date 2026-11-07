@@ -472,3 +472,33 @@ test('חנויות ריקות מתקפלות מאחורי "עוד" וחנויו�
   await expect(page.locator('.store-tab:not(.store-more) .store-tab-name'))
     .toHaveText(['שוק', 'סופר', 'פארם']);
 });
+
+test('עריכת שם החנות הנבחרת מכפתור העיפרון', async ({ page }) => {
+  await setupTwoStores(page);
+  await page.click('#rename-store-btn');
+  const input = page.locator('.store-rename-input');
+  await expect(input).toHaveValue('סופר');
+  await input.fill('סופר יהודה');
+  await input.press('Enter');
+
+  await expect(page.locator('.store-tab.active .store-tab-name')).toHaveText('סופר יהודה');
+  await expect(page.locator('#big-label')).toHaveText('לקנות בסופר יהודה');
+  await page.reload();
+  await expect(page.locator('.store-tab.active .store-tab-name')).toHaveText('סופר יהודה');
+
+  // Escape cancels, an empty name is ignored
+  await page.click('#rename-store-btn');
+  await page.locator('.store-rename-input').fill('משהו אחר');
+  await page.locator('.store-rename-input').press('Escape');
+  await page.click('#rename-store-btn');
+  await page.locator('.store-rename-input').fill('  ');
+  await page.locator('.store-rename-input').press('Enter');
+  await expect(page.locator('.store-tab.active .store-tab-name')).toHaveText('סופר יהודה');
+});
+
+test('כפתור עריכת שם החנות לא מופיע בטאבי המשימות', async ({ page }) => {
+  await setupTwoStores(page);
+  await expect(page.locator('#rename-store-btn')).toBeVisible();
+  await page.click('.nav-tab[data-tab="yarin"]');
+  await expect(page.locator('#rename-store-btn')).toBeHidden();
+});
