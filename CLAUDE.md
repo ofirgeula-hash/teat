@@ -22,9 +22,11 @@
 - Fitness-specific context lives in `fitness/CLAUDE.md`.
 
 ## Shopping-list themes
-`index.html` has three user-selectable themes (`sheet` default, `card`, `notes`), chosen in the
-settings sheet and stored per device in localStorage (`shopping-list-theme`). Each theme is a block
-of CSS scoped under `html[data-theme="…"]` plus its Google Font (`THEME_FONTS` in `<head>`).
+`index.html` has three user-selectable themes (`sheet` default, `soft`, `paper`), chosen in the
+settings sheet and stored per device in localStorage (`shopping-list-theme`). They share one layout:
+the `sheet` block is scoped under `html[data-theme]` and applies to all three, and `soft`/`paper`
+only override surfaces and colors under `html[data-theme="…"]`. The old `card`/`notes` themes were
+removed; `RETIRED_THEMES` in `<head>` maps them to `soft`/`paper`. Fonts come from `THEME_FONTS`.
 Any UI change must be checked in all three themes.
 
 ## Skills
