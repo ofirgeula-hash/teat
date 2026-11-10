@@ -610,7 +610,7 @@
     }
     .delete-btn { width: 34px; height: 34px; padding: 0; }
     .delete-btn::before { width: 18px; height: 18px; }
-    #settings-btn { --icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 7h10M18 7h2M4 17h4M12 17h8'/%3E%3Ccircle cx='16' cy='7' r='2'/%3E%3Ccircle cx='10' cy='17' r='2'/%3E%3C/svg%3E"); }
+    #settings-btn { --icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z'/%3E%3Ccircle cx='12' cy='12' r='3'/%3E%3C/svg%3E"); }
     #reorder-btn  { --icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 6h11M4 12h11M4 18h11'/%3E%3Cpath d='M19 8l2-2.5L19 3M19 16l2 2.5-2 2.5' transform='translate(-1 0)'/%3E%3C/svg%3E"); }
     .drag-handle  { --icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='black'%3E%3Ccircle cx='9' cy='6' r='1.7'/%3E%3Ccircle cx='15' cy='6' r='1.7'/%3E%3Ccircle cx='9' cy='12' r='1.7'/%3E%3Ccircle cx='15' cy='12' r='1.7'/%3E%3Ccircle cx='9' cy='18' r='1.7'/%3E%3Ccircle cx='15' cy='18' r='1.7'/%3E%3C/svg%3E"); }
     #refresh-btn  { --icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M21 12a9 9 0 1 1-3-6.7L21 8'/%3E%3Cpath d='M21 3v5h-5'/%3E%3C/svg%3E"); }
@@ -619,8 +619,7 @@
     /* ── Hero: open-item count; each theme shows a different part of it ── */
     .hero { display: flex; }
 
-    /* Rename the selected store: small pencil after "לקנות ב…", the label turns into an input */
-    #rename-store-btn { align-self: flex-end; margin-bottom: 1px; }
+    /* Pencil button (rename a store in the stores sheet) */
     .pencil-btn {
       flex-shrink: 0; width: 28px; height: 28px; padding: 0;
       border: 1.5px solid var(--border); border-radius: 50%; background: none;
@@ -630,12 +629,6 @@
       content: ''; width: 14px; height: 14px; background: currentColor;
       -webkit-mask: var(--icon) center / contain no-repeat; mask: var(--icon) center / contain no-repeat;
       --icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 20h4L19 9l-4-4L4 16z'/%3E%3Cpath d='M13.5 6.5l4 4'/%3E%3C/svg%3E");
-    }
-    #rename-store-btn[hidden], .hero.renaming #rename-store-btn, .hero.renaming #big-label { display: none; }
-    .store-rename-input {
-      flex: 1; min-width: 0; font: inherit; font-size: 18px; font-weight: 600; color: var(--text);
-      background: none; border: none; border-bottom: 1.5px solid var(--store); outline: none;
-      padding: 2px 0; text-align: right; direction: rtl; border-radius: 0;
     }
     .section-label { letter-spacing: 0; text-transform: none; }
     .header-text h1 { transition: color .2s; }
@@ -733,7 +726,6 @@
 
     <div class="hero" aria-live="polite">
       <span id="hero-title"></span><span id="big-count"></span><span id="big-label"></span><span id="hero-sub"></span>
-      <button id="rename-store-btn" class="pencil-btn" aria-label="שנה את שם החנות"></button>
     </div>
 
   </div><!-- /top-panel -->
@@ -1058,30 +1050,6 @@
     }
   }
 
-  function startRenameStore() {
-    const store = stores.find(s => s.id === selectedStore);
-    const hero  = document.querySelector('.hero');
-    if (!store || hero.classList.contains('renaming')) return;
-    const inp = document.createElement('input');
-    inp.type = 'text'; inp.className = 'store-rename-input';
-    inp.value = store.name;
-    inp.setAttribute('aria-label', 'שם החנות');
-    let cancelled = false;
-    inp.addEventListener('keydown', e => {
-      if (e.key === 'Enter') inp.blur();
-      if (e.key === 'Escape') { cancelled = true; inp.blur(); }
-    });
-    inp.addEventListener('blur', () => {
-      hero.classList.remove('renaming');
-      inp.remove();
-      if (!cancelled) renameStore(store.id, inp.value);
-    });
-    hero.classList.add('renaming');
-    document.getElementById('big-label').after(inp);
-    inp.focus();
-    inp.select();
-  }
-  document.getElementById('rename-store-btn').addEventListener('click', startRenameStore);
 
   async function addStore(name) {
     name = name.trim();
@@ -1489,7 +1457,6 @@
     document.getElementById('big-label').textContent = shopping
       ? (store ? 'לקנות ב' + store.name : 'לקנות')
       : plural('משימה פתוחה', 'משימות פתוחות');
-    document.getElementById('rename-store-btn').hidden = !store;
     document.getElementById('hero-sub').textContent = open === 0
       ? (shopping ? 'אין מה לקנות' : 'אין משימות פתוחות')
       : open + ' ' + (shopping ? plural('פריט לקנות', 'פריטים לקנות') : plural('משימה פתוחה', 'משימות פתוחות'));
